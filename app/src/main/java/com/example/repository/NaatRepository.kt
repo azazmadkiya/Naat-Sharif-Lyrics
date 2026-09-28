@@ -15,7 +15,7 @@ class NaatRepository {
     }
   }
 
-  val categories = listOf(
+  private val defaultCategories = listOf(
     CategoryItem("hamd", "हम्द शरीफ", "Hamd Sharif", "ic_hamd", 15),
     CategoryItem("naat", "नात शरीफ", "Naat Sharif", "ic_naat", 45),
     CategoryItem("manqabat", "मनक़बत शरीफ", "Manqabat Sharif", "ic_manqabat", 25),
@@ -29,7 +29,7 @@ class NaatRepository {
   private val defaultNaats = listOf(
     NaatItem(
       id = "1",
-      title = "1. अक्से रूए मुस्तफा से ऐसी",
+      title = "अक्से रूए मुस्तफा से ऐसी",
       category = "naat",
       reciter = "Ala Hazrat",
       lyrics = "अक्से रूए मुस्तफा से ऐसी रौशनी हुई,\nज़रा ज़रा मदीने का आफ़ताब हो गया।\n\nदूर से आने वालो हमें भी सलाम कहना,\nहमारा भी तो वहाँ पैग़ाम कहना।",
@@ -38,7 +38,7 @@ class NaatRepository {
     ),
     NaatItem(
       id = "2",
-      title = "2. अपने दामाने शफाअत में छुपाए",
+      title = "अपने दामाने शफाअत में छुपाए",
       category = "naat",
       reciter = "Khalid Mahmud",
       lyrics = "अपने दामाने शफाअत में छुपाए रखना,\nमेरे सरकार मेरी बात बनाए रखना।\n\nमैंने माना के निकम्मा हु मगर आपका हु,\nमुझ निकम्मे को भी सरकार निभाए रखना।",
@@ -47,16 +47,16 @@ class NaatRepository {
     ),
     NaatItem(
       id = "3",
-      title = "3. अब तो बस एक ही धुन है",
+      title = "अब तो बस एक ही धुन है",
       category = "naat",
       reciter = "Owais Raza Qadri",
       lyrics = "अब तो बस एक ही धुन है के मदीना देखूँ,\nरौज़ए اقدस और शहर का नगीना देखूँ।",
       hindiLyrics = "अब तो बस एक ही धुन है...",
-      gujaratiLyrics = "અબ તો બસ એક હી ધુન હૈ કે मदीना દેખૂં..."
+      gujaratiLyrics = "અબ તો બસ એક હી ધુન હૈ કે मदीना દેखૂં..."
     ),
     NaatItem(
       id = "4",
-      title = "4. वही रब है जिसने तुझको",
+      title = "वही रब है जिसने तुझको",
       category = "hamd",
       reciter = "Hamd Reciter",
       lyrics = "वही रब है जिसने तुझको ये मक़ाम बख्शा,\nज़मीं पर भी आसमां का एहतराम बख्शा।",
@@ -65,7 +65,7 @@ class NaatRepository {
     ),
     NaatItem(
       id = "5",
-      title = "5. मनक़बत गौसे आज़म दस्तगीर",
+      title = "मनक़बत गौसे आज़म दस्तगीर",
       category = "gouse",
       reciter = "Manqabat Khwan",
       lyrics = "या शाहमीर गौसे आज़म दस्तगीर,\nमुश्किलकुशा हो आप, करो मेरे पीर।",
@@ -76,7 +76,78 @@ class NaatRepository {
 
   companion object {
     private val cachedNaats = mutableListOf<NaatItem>()
+    private val cachedCategories = mutableListOf<CategoryItem>()
     private var isInitialized = false
+    private var isCategoriesInitialized = false
+  }
+
+  suspend fun getCategories(): List<CategoryItem> {
+    if (!isCategoriesInitialized) {
+      cachedCategories.clear()
+      cachedCategories.addAll(defaultCategories)
+      isCategoriesInitialized = true
+      try {
+        val db = firestore
+        if (db != null) {
+          val snapshot = db.collection("categories").get().await()
+          val list = snapshot.documents.mapNotNull { doc ->
+            doc.toObject(CategoryItem::class.java)?.copy(id = doc.id)
+          }
+          if (list.isNotEmpty()) {
+            cachedCategories.clear()
+            cachedCategories.addAll(list)
+          }
+        }
+      } catch (e: Exception) {
+        Log.d("NaatRepository", "Using default/cached categories")
+      }
+    }
+    return cachedCategories
+  }
+
+  suspend fun addCategory(item: CategoryItem): Boolean {
+    val newItem = if (item.id.isBlank()) item.copy(id = item.title.lowercase().replace(" ", "_")) else item
+    cachedCategories.add(newItem)
+    try {
+      val db = firestore
+      if (db != null) {
+        db.collection("categories").document(newItem.id).set(newItem).await()
+      }
+    } catch (e: Exception) {
+      Log.d("NaatRepository", "Category added locally")
+    }
+    return true
+  }
+
+  suspend fun updateCategory(item: CategoryItem): Boolean {
+    val index = cachedCategories.indexOfFirst { it.id == item.id }
+    if (index >= 0) {
+      cachedCategories[index] = item
+    } else {
+      cachedCategories.add(item)
+    }
+    try {
+      val db = firestore
+      if (db != null && item.id.isNotEmpty()) {
+        db.collection("categories").document(item.id).set(item).await()
+      }
+    } catch (e: Exception) {
+      Log.d("NaatRepository", "Category updated locally")
+    }
+    return true
+  }
+
+  suspend fun deleteCategory(id: String): Boolean {
+    cachedCategories.removeAll { it.id == id }
+    try {
+      val db = firestore
+      if (db != null && id.isNotEmpty()) {
+        db.collection("categories").document(id).delete().await()
+      }
+    } catch (e: Exception) {
+      Log.d("NaatRepository", "Category deleted locally")
+    }
+    return true
   }
 
   suspend fun getNaats(): List<NaatItem> {

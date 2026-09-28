@@ -21,7 +21,6 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
   var email by remember { mutableStateOf("") }
   var password by remember { mutableStateOf("") }
   var isSignUp by remember { mutableStateOf(false) }
-  var selectedRole by remember { mutableStateOf("User") } // "User" or "Admin"
   var isLoading by remember { mutableStateOf(false) }
   var resetMessage by remember { mutableStateOf<String?>(null) }
 
@@ -95,44 +94,6 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      // Role Selection (User vs Admin) - Always visible for both Login and Sign Up
-      Text(
-        text = "Select Account Role:",
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.align(Alignment.Start)
-      )
-      Spacer(modifier = Modifier.height(8.dp))
-      Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
-      ) {
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          modifier = Modifier.clickable { selectedRole = "User" }
-        ) {
-          RadioButton(
-            selected = selectedRole == "User",
-            onClick = { selectedRole = "User" }
-          )
-          Spacer(modifier = Modifier.width(4.dp))
-          Text("User (View)")
-        }
-
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          modifier = Modifier.clickable { selectedRole = "Admin" }
-        ) {
-          RadioButton(
-            selected = selectedRole == "Admin",
-            onClick = { selectedRole = "Admin" }
-          )
-          Spacer(modifier = Modifier.width(4.dp))
-          Text("Admin (Full Access)")
-        }
-      }
-      Spacer(modifier = Modifier.height(16.dp))
-
       if (viewModel.authError != null) {
         Text(
           text = viewModel.authError ?: "",
@@ -155,7 +116,7 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
         onClick = {
           if (email.isNotBlank() && password.isNotBlank()) {
             isLoading = true
-            val isAdminRole = selectedRole == "Admin"
+            val isAdminRole = email.contains("admin", ignoreCase = true)
             if (isSignUp) {
               viewModel.signUp(email, password, isAdminRole) { success ->
                 isLoading = false
@@ -181,7 +142,7 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
         }
       }
 
-
+      Spacer(modifier = Modifier.height(16.dp))
 
       TextButton(onClick = { 
         isSignUp = !isSignUp

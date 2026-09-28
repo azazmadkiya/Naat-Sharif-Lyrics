@@ -19,7 +19,8 @@ class NaatViewModel : ViewModel() {
   private val naatRepo = NaatRepository()
   private val authRepo = AuthRepository()
 
-  val categories: List<CategoryItem> = naatRepo.categories
+  var categories by mutableStateOf<List<CategoryItem>>(emptyList())
+    private set
 
   private val _naats = MutableStateFlow<List<NaatItem>>(emptyList())
   val naats: StateFlow<List<NaatItem>> = _naats.asStateFlow()
@@ -37,6 +38,37 @@ class NaatViewModel : ViewModel() {
 
   init {
     loadNaats()
+    loadCategories()
+  }
+
+  fun loadCategories() {
+    viewModelScope.launch {
+      categories = naatRepo.getCategories()
+    }
+  }
+
+  fun addCategory(item: CategoryItem, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+      val success = naatRepo.addCategory(item)
+      if (success) loadCategories()
+      onComplete(success)
+    }
+  }
+
+  fun updateCategory(item: CategoryItem, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+      val success = naatRepo.updateCategory(item)
+      if (success) loadCategories()
+      onComplete(success)
+    }
+  }
+
+  fun deleteCategory(id: String, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+      val success = naatRepo.deleteCategory(id)
+      if (success) loadCategories()
+      onComplete(success)
+    }
   }
 
   fun loadNaats() {
