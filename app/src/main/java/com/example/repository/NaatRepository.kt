@@ -26,54 +26,6 @@ class NaatRepository {
     CategoryItem("raza", "कलामे रज़ा", "Kalame Raza", "ic_raza", 30)
   )
 
-  private val defaultNaats = listOf(
-    NaatItem(
-      id = "1",
-      title = "अक्से रूए मुस्तफा से ऐसी",
-      category = "naat",
-      reciter = "Ala Hazrat",
-      lyrics = "अक्से रूए मुस्तफा से ऐसी रौशनी हुई,\nज़रा ज़रा मदीने का आफ़ताब हो गया।\n\nदूर से आने वालो हमें भी सलाम कहना,\nहमारा भी तो वहाँ पैग़ाम कहना।",
-      hindiLyrics = "अक्से रूए मुस्तफा से ऐसी रौशनी हुई...",
-      gujaratiLyrics = "અક્સે રૂએ મુસ્તફા સે એસી રોશની હુઈ,\nઝરા ઝરા મદીને કા આફતાબ હો ગયા।"
-    ),
-    NaatItem(
-      id = "2",
-      title = "अपने दामाने शफाअत में छुपाए",
-      category = "naat",
-      reciter = "Khalid Mahmud",
-      lyrics = "अपने दामाने शफाअत में छुपाए रखना,\nमेरे सरकार मेरी बात बनाए रखना।\n\nमैंने माना के निकम्मा हु मगर आपका हु,\nमुझ निकम्मे को भी सरकार निभाए रखना।",
-      hindiLyrics = "अपने दामाने शफाअत में छुपाए रखना...",
-      gujaratiLyrics = "અપને દામાને શફાઅત મેં છુપાએ રખના,\nમેરે સરકાર મેરી બાત બનાએ રખના।"
-    ),
-    NaatItem(
-      id = "3",
-      title = "अब तो बस एक ही धुन है",
-      category = "naat",
-      reciter = "Owais Raza Qadri",
-      lyrics = "अब तो बस एक ही धुन है के मदीना देखूँ,\nरौज़ए اقدस और शहर का नगीना देखूँ।",
-      hindiLyrics = "अब तो बस एक ही धुन है...",
-      gujaratiLyrics = "અબ તો બસ એક હી ધુન હૈ કે मदीना દેખૂં..."
-    ),
-    NaatItem(
-      id = "4",
-      title = "वही रब है जिसने तुझको",
-      category = "hamd",
-      reciter = "Hamd Reciter",
-      lyrics = "वही रब है जिसने तुझको ये मक़ाम बख्शा,\nज़मीं पर भी आसमां का एहतराम बख्शा।",
-      hindiLyrics = "वही रब है जिसने तुझको...",
-      gujaratiLyrics = "વહી રબ હૈ જિસને તુઝકો યે મકામ બખ્શા..."
-    ),
-    NaatItem(
-      id = "5",
-      title = "मनक़बत गौसे आज़म दस्तगीर",
-      category = "gouse",
-      reciter = "Manqabat Khwan",
-      lyrics = "या शाहमीर गौसे आज़म दस्तगीर,\nमुश्किलकुशा हो आप, करो मेरे पीर।",
-      hindiLyrics = "या शाहमीर गौसे आज़म...",
-      gujaratiLyrics = "યા શાહમીર ગૌસે આઝમ દસ્તगीर..."
-    )
-  )
-
   companion object {
     private val cachedNaats = mutableListOf<NaatItem>()
     private val cachedCategories = mutableListOf<CategoryItem>()
@@ -87,14 +39,21 @@ class NaatRepository {
         val list = snapshot.documents.mapNotNull { doc ->
           doc.toObject(CategoryItem::class.java)?.copy(id = doc.id)
         }
+        cachedCategories.clear()
         if (list.isNotEmpty()) {
-          cachedCategories.clear()
           cachedCategories.addAll(list)
-          return cachedCategories
+        } else {
+          cachedCategories.addAll(defaultCategories)
+          for (cat in defaultCategories) {
+            try {
+              db.collection("categories").document(cat.id).set(cat).await()
+            } catch (_: Exception) {}
+          }
         }
+        return cachedCategories
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Failed to fetch categories from cloud, using cache")
+      Log.d("NaatRepository", "Failed to fetch categories from cloud: ${e.message}")
     }
     if (cachedCategories.isEmpty()) {
       cachedCategories.addAll(defaultCategories)
@@ -111,7 +70,7 @@ class NaatRepository {
         db.collection("categories").document(newItem.id).set(newItem).await()
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Category added locally")
+      Log.d("NaatRepository", "Category added error: ${e.message}")
     }
     return true
   }
@@ -129,7 +88,7 @@ class NaatRepository {
         db.collection("categories").document(item.id).set(item).await()
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Category updated locally")
+      Log.d("NaatRepository", "Category updated error: ${e.message}")
     }
     return true
   }
@@ -142,7 +101,7 @@ class NaatRepository {
         db.collection("categories").document(id).delete().await()
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Category deleted locally")
+      Log.d("NaatRepository", "Category deleted error: ${e.message}")
     }
     return true
   }
@@ -155,17 +114,12 @@ class NaatRepository {
         val list = snapshot.documents.mapNotNull { doc ->
           doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
         }
-        if (list.isNotEmpty()) {
-          cachedNaats.clear()
-          cachedNaats.addAll(list)
-          return cachedNaats
-        }
+        cachedNaats.clear()
+        cachedNaats.addAll(list)
+        return cachedNaats
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Failed to fetch naats from cloud, using cache")
-    }
-    if (cachedNaats.isEmpty()) {
-      cachedNaats.addAll(defaultNaats)
+      Log.d("NaatRepository", "Failed to fetch naats from cloud: ${e.message}")
     }
     return cachedNaats
   }
@@ -179,7 +133,7 @@ class NaatRepository {
         db.collection("naats").document(newItem.id).set(newItem).await()
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Added locally")
+      Log.d("NaatRepository", "Add naat error: ${e.message}")
     }
     return true
   }
@@ -194,11 +148,10 @@ class NaatRepository {
     try {
       val db = firestore
       if (db != null && item.id.isNotEmpty()) {
-        db.collection("ats").document(item.id).set(item).await() // wait, collection is naats
         db.collection("naats").document(item.id).set(item).await()
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Updated locally")
+      Log.d("NaatRepository", "Update naat error: ${e.message}")
     }
     return true
   }
@@ -211,7 +164,7 @@ class NaatRepository {
         db.collection("naats").document(id).delete().await()
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Deleted locally")
+      Log.d("NaatRepository", "Delete naat error: ${e.message}")
     }
     return true
   }
@@ -225,7 +178,7 @@ class NaatRepository {
       val db = firestore ?: return true
       db.collection("naats").document(id).update("favorite", isFavorite).await()
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Favorite updated locally")
+      Log.d("NaatRepository", "Favorite update error: ${e.message}")
     }
     return true
   }
