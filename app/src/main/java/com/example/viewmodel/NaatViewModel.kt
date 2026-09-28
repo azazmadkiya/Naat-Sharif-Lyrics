@@ -42,6 +42,12 @@ class NaatViewModel : ViewModel() {
 
   init {
     refreshData()
+    naatRepo.listenToNaats { list ->
+      _naats.value = list.toList()
+    }
+    naatRepo.listenToCategories { list ->
+      categories = list
+    }
   }
 
   fun refreshData() {

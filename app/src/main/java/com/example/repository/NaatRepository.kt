@@ -31,6 +31,49 @@ class NaatRepository {
     private val cachedCategories = mutableListOf<CategoryItem>()
   }
 
+  fun listenToNaats(onUpdate: (List<NaatItem>) -> Unit) {
+    try {
+      firestore?.collection("naats")?.addSnapshotListener { snapshot, error ->
+        if (error != null) {
+          Log.d("NaatRepository", "Naats listen failed: ${error.message}")
+          return@addSnapshotListener
+        }
+        if (snapshot != null) {
+          val list = snapshot.documents.mapNotNull { doc ->
+            doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
+          }
+          cachedNaats.clear()
+          cachedNaats.addAll(list)
+          onUpdate(cachedNaats)
+        }
+      }
+    } catch (e: Exception) {
+      Log.d("NaatRepository", "Naats snapshot error: ${e.message}")
+    }
+  }
+
+  fun listenToCategories(onUpdate: (List<CategoryItem>) -> Unit) {
+    try {
+      firestore?.collection("categories")?.addSnapshotListener { snapshot, error ->
+        if (error != null) return@addSnapshotListener
+        if (snapshot != null) {
+          val list = snapshot.documents.mapNotNull { doc ->
+            doc.toObject(CategoryItem::class.java)?.copy(id = doc.id)
+          }
+          cachedCategories.clear()
+          if (list.isNotEmpty()) {
+            cachedCategories.addAll(list)
+          } else {
+            cachedCategories.addAll(defaultCategories)
+          }
+          onUpdate(cachedCategories)
+        }
+      }
+    } catch (e: Exception) {
+      Log.d("NaatRepository", "Categories snapshot error: ${e.message}")
+    }
+  }
+
   suspend fun getCategories(): List<CategoryItem> {
     try {
       val db = firestore
