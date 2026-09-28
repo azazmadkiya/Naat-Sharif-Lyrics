@@ -164,6 +164,11 @@ jobs:
           RELEASE_TAG="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
           RELEASE_TITLE="Debug Build & App Bundle #${{ github.run_number }}"
           
+          NOTES="Automatically generated Debug APK and AAB build.
+          - Run #${{ github.run_number }} (Attempt #${{ github.run_attempt }})
+          - Source Commit: ${{ github.sha }}
+          - Contains both app-debug.apk and app-debug.aab."
+          
           echo "Creating GitHub Release: $RELEASE_TAG"
           gh release create "$RELEASE_TAG" \
             "$APK_PATH#$APK_NAME" \
@@ -171,10 +176,7 @@ jobs:
             --title "$RELEASE_TITLE" \
             --target "${{ github.sha }}" \
             --latest \
-            --notes "Automatically generated Debug APK and AAB build.
-- Run #${{ github.run_number }} (Attempt #${{ github.run_attempt }})
-- Source Commit: ${{ github.sha }}
-- Contains both app-debug.apk and app-debug.aab."
+            --notes "$NOTES"
 
       - name: Report download result
         if: always()
