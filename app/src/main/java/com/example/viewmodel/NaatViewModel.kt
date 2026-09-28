@@ -36,15 +36,37 @@ class NaatViewModel : ViewModel() {
   var isAdmin by mutableStateOf(authRepo.isAdmin)
   var authError by mutableStateOf<String?>(null)
 
+  var isConnected by mutableStateOf(true)
+  var errorMessage by mutableStateOf<String?>(null)
+  var isRefreshing by mutableStateOf(false)
+
   init {
-    loadNaats()
-    loadCategories()
+    refreshData()
+  }
+
+  fun refreshData() {
+    viewModelScope.launch {
+      isRefreshing = true
+      errorMessage = null
+      try {
+        val fetchedNaats = naatRepo.getNaats()
+        val fetchedCategories = naatRepo.getCategories()
+        _naats.value = fetchedNaats.toList()
+        categories = fetchedCategories
+        isConnected = true
+        errorMessage = null
+      } catch (e: Exception) {
+        isConnected = false
+        errorMessage = "No internet connection. Please check your network and try again."
+        android.util.Log.e("NaatViewModel", "Network error: ${e.message}")
+      } finally {
+        isRefreshing = false
+      }
+    }
   }
 
   fun loadCategories() {
-    viewModelScope.launch {
-      categories = naatRepo.getCategories()
-    }
+    refreshData()
   }
 
   fun addCategory(item: CategoryItem, onComplete: (Boolean) -> Unit) {

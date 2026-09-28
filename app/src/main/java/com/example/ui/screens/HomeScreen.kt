@@ -88,41 +88,106 @@ fun HomeScreen(
               colors = listOf(IslamicGreenLight, IslamicGreenDark)
             )
           )
-          .padding(24.dp),
-        contentAlignment = Alignment.Center
+          .padding(24.dp)
       ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-          // App Logo badge simulation
-          Surface(
-            shape = RoundedCornerShape(50),
-            color = Color(0xFF111827),
-            modifier = Modifier.size(56.dp)
-          ) {
-            Box(contentAlignment = Alignment.Center) {
-              Text("नात", color = GoldAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Column(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+          Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+              modifier = Modifier.align(Alignment.Center),
+              horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+              // App Logo badge simulation
+              Surface(
+                shape = RoundedCornerShape(50),
+                color = Color(0xFF111827),
+                modifier = Modifier.size(56.dp)
+              ) {
+                Box(contentAlignment = Alignment.Center) {
+                  Text("नात", color = GoldAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+              }
+              Spacer(modifier = Modifier.height(12.dp))
+              Text(
+                text = "नातों का ख़ज़ाना",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+              )
+              Spacer(modifier = Modifier.height(8.dp))
+              Text(
+                text = "03 Jun 2026  |  17 Zil-Hijjah 1447 AH",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFE5E7EB)
+              )
+              Spacer(modifier = Modifier.height(16.dp))
+
+              Button(
+                onClick = { showDonateDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                shape = RoundedCornerShape(20.dp)
+              ) {
+                Text("डोनेशन करे", color = IslamicGreenDark, fontWeight = FontWeight.Bold)
+              }
+            }
+
+            IconButton(
+              onClick = { viewModel.refreshData() },
+              modifier = Modifier.align(Alignment.TopEnd)
+            ) {
+              if (viewModel.isRefreshing) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+              } else {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh App", tint = Color.White)
+              }
             }
           }
-          Spacer(modifier = Modifier.height(12.dp))
-          Text(
-            text = "नातों का ख़ज़ाना",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-          )
-          Spacer(modifier = Modifier.height(8.dp))
-          Text(
-            text = "03 Jun 2026  |  17 Zil-Hijjah 1447 AH",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFFE5E7EB)
-          )
-          Spacer(modifier = Modifier.height(16.dp))
+        }
+      }
 
-          Button(
-            onClick = { showDonateDialog = true },
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-            shape = RoundedCornerShape(20.dp)
+      // No Internet Connection Error Banner with Refresh Button
+      if (!viewModel.isConnected || viewModel.errorMessage != null) {
+        Card(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+          shape = RoundedCornerShape(12.dp)
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
           ) {
-            Text("डोनेशन करे", color = IslamicGreenDark, fontWeight = FontWeight.Bold)
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "No internet connection",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onErrorContainer
+              )
+              Spacer(modifier = Modifier.height(2.dp))
+              Text(
+                text = viewModel.errorMessage ?: "Please check your network and try again.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+              )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+              onClick = { viewModel.refreshData() },
+              colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+              if (viewModel.isRefreshing) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
+              } else {
+                Text("Refresh")
+              }
+            }
           }
         }
       }

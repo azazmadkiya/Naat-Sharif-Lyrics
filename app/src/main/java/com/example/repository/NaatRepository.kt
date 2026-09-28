@@ -52,7 +52,7 @@ class NaatRepository {
       reciter = "Owais Raza Qadri",
       lyrics = "अब तो बस एक ही धुन है के मदीना देखूँ,\nरौज़ए اقدस और शहर का नगीना देखूँ।",
       hindiLyrics = "अब तो बस एक ही धुन है...",
-      gujaratiLyrics = "અબ તો બસ એક હી ધુન હૈ કે मदीना દેखૂં..."
+      gujaratiLyrics = "અબ તો બસ એક હી ધુન હૈ કે मदीना દેખૂં..."
     ),
     NaatItem(
       id = "4",
@@ -70,37 +70,34 @@ class NaatRepository {
       reciter = "Manqabat Khwan",
       lyrics = "या शाहमीर गौसे आज़म दस्तगीर,\nमुश्किलकुशा हो आप, करो मेरे पीर।",
       hindiLyrics = "या शाहमीर गौसे आज़म...",
-      gujaratiLyrics = "યા શાહમીર ગૌસે આઝમ દસ્તગીર..."
+      gujaratiLyrics = "યા શાહમીર ગૌસે આઝમ દસ્તगीर..."
     )
   )
 
   companion object {
     private val cachedNaats = mutableListOf<NaatItem>()
     private val cachedCategories = mutableListOf<CategoryItem>()
-    private var isInitialized = false
-    private var isCategoriesInitialized = false
   }
 
   suspend fun getCategories(): List<CategoryItem> {
-    if (!isCategoriesInitialized) {
-      cachedCategories.clear()
-      cachedCategories.addAll(defaultCategories)
-      isCategoriesInitialized = true
-      try {
-        val db = firestore
-        if (db != null) {
-          val snapshot = db.collection("categories").get().await()
-          val list = snapshot.documents.mapNotNull { doc ->
-            doc.toObject(CategoryItem::class.java)?.copy(id = doc.id)
-          }
-          if (list.isNotEmpty()) {
-            cachedCategories.clear()
-            cachedCategories.addAll(list)
-          }
+    try {
+      val db = firestore
+      if (db != null) {
+        val snapshot = db.collection("categories").get().await()
+        val list = snapshot.documents.mapNotNull { doc ->
+          doc.toObject(CategoryItem::class.java)?.copy(id = doc.id)
         }
-      } catch (e: Exception) {
-        Log.d("NaatRepository", "Using default/cached categories")
+        if (list.isNotEmpty()) {
+          cachedCategories.clear()
+          cachedCategories.addAll(list)
+          return cachedCategories
+        }
       }
+    } catch (e: Exception) {
+      Log.d("NaatRepository", "Failed to fetch categories from cloud, using cache")
+    }
+    if (cachedCategories.isEmpty()) {
+      cachedCategories.addAll(defaultCategories)
     }
     return cachedCategories
   }
@@ -151,25 +148,24 @@ class NaatRepository {
   }
 
   suspend fun getNaats(): List<NaatItem> {
-    if (!isInitialized) {
-      cachedNaats.clear()
-      cachedNaats.addAll(defaultNaats)
-      isInitialized = true
-      try {
-        val db = firestore
-        if (db != null) {
-          val snapshot = db.collection("naats").get().await()
-          val list = snapshot.documents.mapNotNull { doc ->
-            doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
-          }
-          if (list.isNotEmpty()) {
-            cachedNaats.clear()
-            cachedNaats.addAll(list)
-          }
+    try {
+      val db = firestore
+      if (db != null) {
+        val snapshot = db.collection("naats").get().await()
+        val list = snapshot.documents.mapNotNull { doc ->
+          doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
         }
-      } catch (e: Exception) {
-        Log.d("NaatRepository", "Using default/cached naats")
+        if (list.isNotEmpty()) {
+          cachedNaats.clear()
+          cachedNaats.addAll(list)
+          return cachedNaats
+        }
       }
+    } catch (e: Exception) {
+      Log.d("NaatRepository", "Failed to fetch naats from cloud, using cache")
+    }
+    if (cachedNaats.isEmpty()) {
+      cachedNaats.addAll(defaultNaats)
     }
     return cachedNaats
   }
@@ -198,6 +194,7 @@ class NaatRepository {
     try {
       val db = firestore
       if (db != null && item.id.isNotEmpty()) {
+        db.collection("ats").document(item.id).set(item).await() // wait, collection is naats
         db.collection("naats").document(item.id).set(item).await()
       }
     } catch (e: Exception) {
