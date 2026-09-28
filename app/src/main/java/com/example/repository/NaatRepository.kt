@@ -26,39 +26,6 @@ class NaatRepository {
     CategoryItem("raza", "कलामे रज़ा", "Kalame Raza", "ic_raza", 30)
   )
 
-  private val defaultNaats = listOf(
-    NaatItem(
-      id = "default_1",
-      title = "مصطفیٰ جان رحمت پہ لاکھوں سلام",
-      category = "naat",
-      reciter = "Ala Hazrat Imam Ahmed Raza",
-      lyrics = "Mustafa Jaan e Rahmat Pe Lakhon Salam\nShams e Dhuha Badar e Duja Pe Lakhon Salam\n\nToo Shaho Ка Sultan E Aalam Hai Bhai\nTere Dar Ki Chaukhat Pe Lakhon Salam",
-      hindiLyrics = "मुस्तफा जाने रहमत पे लाखों सलाम\nशम्सु दुहा बद्रु दुजा पे लाखों सलाम\n\nतू शाहों का सुल्तान ए आलम है भाई\nतेरे दर की चौखट पे लाखों सलाम",
-      gujaratiLyrics = "મુસ્તફા જાને રહમત પે લાખો સલામ\nશમ્સુ દુહા બદ્રુ દુજા પે લાખો સલામ",
-      arabicLyrics = "مصطفى جان رحمت پہ لاکھوں سلام"
-    ),
-    NaatItem(
-      id = "default_2",
-      title = "یا نبی سلام عليك",
-      category = "naat",
-      reciter = "Traditional",
-      lyrics = "Ya Nabi Salam Alayka\nYa Rasul Salam Alayka\nYa Habib Salam Alayka\nSalawatullah Alayka",
-      hindiLyrics = "या नबी सलाम अलैका\nया रसूल सलाम अलैका\nया हबीब सलाम अलैका\nसलावतुल्लाह अलैका",
-      gujaratiLyrics = "યા નબી સલામ અલૈકા\nયા રસૂલ સલાम અલૈકા",
-      arabicLyrics = "يا نبي سلام عليك"
-    ),
-    NaatItem(
-      id = "default_3",
-      title = "taj waale ko mera salam",
-      category = "gareeb",
-      reciter = "Kalam e Raza",
-      lyrics = "Taj Waale Ko Mera Salam Kehna\nKhwaja Ghareeb Nawaz Ko Mera Salam Kehna",
-      hindiLyrics = "ताज वाले को मेरा सलाम कहना\nख्वाजा गरीब नवाज को मेरा सलाम कहना",
-      gujaratiLyrics = "તાજ વાલે કો મેરા સલામ કહેના",
-      arabicLyrics = "تاج والے کو میرا سلام"
-    )
-  )
-
   companion object {
     private val cachedNaats = mutableListOf<NaatItem>()
     private val cachedCategories = mutableListOf<CategoryItem>()
@@ -69,9 +36,6 @@ class NaatRepository {
       firestore?.collection("naats")?.addSnapshotListener { snapshot, error ->
         if (error != null) {
           Log.d("NaatRepository", "Naats listen failed: ${error.message}")
-          if (cachedNaats.isEmpty()) {
-            cachedNaats.addAll(defaultNaats)
-          }
           onUpdate(cachedNaats)
           return@addSnapshotListener
         }
@@ -80,27 +44,12 @@ class NaatRepository {
             doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
           }
           cachedNaats.clear()
-          if (list.isNotEmpty()) {
-            cachedNaats.addAll(list)
-          } else {
-            cachedNaats.addAll(defaultNaats)
-            val db = firestore
-            if (db != null) {
-              for (item in defaultNaats) {
-                try {
-                  db.collection("naats").document(item.id).set(item)
-                } catch (_: Exception) {}
-              }
-            }
-          }
+          cachedNaats.addAll(list)
           onUpdate(cachedNaats)
         }
       }
     } catch (e: Exception) {
       Log.d("NaatRepository", "Naats snapshot error: ${e.message}")
-      if (cachedNaats.isEmpty()) {
-        cachedNaats.addAll(defaultNaats)
-      }
       onUpdate(cachedNaats)
     }
   }
@@ -213,23 +162,11 @@ class NaatRepository {
           doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
         }
         cachedNaats.clear()
-        if (list.isNotEmpty()) {
-          cachedNaats.addAll(list)
-        } else {
-          cachedNaats.addAll(defaultNaats)
-          for (item in defaultNaats) {
-            try {
-              db.collection("naats").document(item.id).set(item).await()
-            } catch (_: Exception) {}
-          }
-        }
+        cachedNaats.addAll(list)
         return cachedNaats
       }
     } catch (e: Exception) {
       Log.d("NaatRepository", "Failed to fetch naats from cloud: ${e.message}")
-    }
-    if (cachedNaats.isEmpty()) {
-      cachedNaats.addAll(defaultNaats)
     }
     return cachedNaats
   }
