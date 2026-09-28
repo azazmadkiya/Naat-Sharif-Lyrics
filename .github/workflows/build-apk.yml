@@ -80,12 +80,15 @@ jobs:
             fi
           fi
 
+      - name: Generate Gradle Wrapper
+        run: |
+          gradle wrapper --gradle-version 9.3.1
+          chmod +x gradlew
+
       - name: Build Debug APK and AAB
         run: |
-          echo "Building Debug APK..."
-          gradle :app:assembleDebug --stacktrace --no-daemon
-          echo "Building Debug AAB..."
-          gradle :app:bundleDebug --stacktrace --no-daemon
+          echo "Building Debug APK and AAB..."
+          ./gradlew :app:assembleDebug :app:bundleDebug --stacktrace --no-daemon
 
       - name: Verify APK and AAB
         run: |
