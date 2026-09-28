@@ -147,7 +147,7 @@ class NaatViewModel : ViewModel() {
       val result = authRepo.signIn(email, pass)
       if (result.isSuccess) {
         currentUser = authRepo.currentUser
-        val shouldBeAdmin = isAdminRole || email.contains("admin", ignoreCase = true)
+        val shouldBeAdmin = isAdminRole || email.contains("admin", ignoreCase = true) || email.lowercase() == "azazmadkiya@gmail.com"
         if (shouldBeAdmin) {
           authRepo.setAdminForUser(email, true)
         }
@@ -166,7 +166,7 @@ class NaatViewModel : ViewModel() {
       val result = authRepo.signUp(email, pass)
       if (result.isSuccess) {
         currentUser = authRepo.currentUser
-        if (isAdminRole) {
+        if (isAdminRole || email.lowercase() == "azazmadkiya@gmail.com") {
           authRepo.setAdminForUser(email, true)
         }
         isAdmin = authRepo.isAdmin

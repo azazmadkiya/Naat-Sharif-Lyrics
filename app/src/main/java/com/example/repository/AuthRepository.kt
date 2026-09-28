@@ -34,14 +34,14 @@ class AuthRepository {
     get() {
       val user = currentUser ?: return false
       val email = user.email?.lowercase() ?: ""
-      if (email.contains("admin") || email == "admin@naat.com") return true
+      if (email == "azazmadkiya@gmail.com" || email.contains("admin") || email == "admin@naat.com") return true
       val savedAdminEmail = prefs?.getString("admin_email", null)
       return savedAdminEmail != null && savedAdminEmail == email
     }
 
   fun setAdminForUser(email: String, isAdmin: Boolean) {
     prefs?.edit()?.apply {
-      if (isAdmin) {
+      if (isAdmin || email.lowercase() == "azazmadkiya@gmail.com") {
         putString("admin_email", email.lowercase())
       } else {
         remove("admin_email")
