@@ -20,6 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import com.example.model.CategoryItem
 import com.example.ui.theme.IslamicGreen
 import com.example.ui.theme.IslamicGreenDark
@@ -142,12 +146,103 @@ fun HomeScreen(
   }
 
   if (showDonateDialog) {
+    val context = LocalContext.current
     AlertDialog(
       onDismissRequest = { showDonateDialog = false },
-      title = { Text("Support Naat Sharif App") },
-      text = { Text("Jazakallah Khair for your support! You can support via UPI or Bank Transfer to keep this app running ad-free for lovers of Naat.") },
+      title = { 
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(Icons.Default.Favorite, contentDescription = null, tint = Color.Red)
+          Spacer(modifier = Modifier.width(8.dp))
+          Text("Support & Donate")
+        }
+      },
+      text = {
+        Column(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+          Text(
+            "Jazakallah Khair for supporting Naat Sharif App! Contributions help keep this app ad-free and maintained.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center
+          )
+          
+          // QR Code Card representation
+          Surface(
+            modifier = Modifier.size(180.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            shadowElevation = 4.dp
+          ) {
+            Box(
+              modifier = Modifier.fillMaxSize().padding(12.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = MaterialTheme.colorScheme.primaryContainer,
+                  modifier = Modifier.size(100.dp)
+                ) {
+                  Box(contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                      Icon(Icons.Default.QrCode2, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
+                      Text("Google Pay / UPI", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                  }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("azazmadkiya@oksbi", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Color.Black)
+              }
+            }
+          }
+
+          // UPI ID box
+          Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant
+          ) {
+            Row(
+              modifier = Modifier.fillMaxWidth().padding(12.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Column {
+                Text("UPI ID", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("azazmadkiya@oksbi", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+              }
+              TextButton(onClick = {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("UPI ID", "azazmadkiya@oksbi")
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(context, "UPI ID copied to clipboard!", Toast.LENGTH_SHORT).show()
+              }) {
+                Text("Copy")
+              }
+            }
+          }
+        }
+      },
       confirmButton = {
-        Button(onClick = { showDonateDialog = false }) {
+        Button(
+          onClick = {
+            try {
+              val uri = Uri.parse("upi://pay?pa=azazmadkiya@oksbi&pn=Azazmadkiya&cu=INR")
+              val intent = Intent(Intent.ACTION_VIEW, uri)
+              context.startActivity(intent)
+            } catch (e: Exception) {
+              Toast.makeText(context, "No UPI app found on device", Toast.LENGTH_SHORT).show()
+            }
+          },
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Text("Pay via UPI App (GPay/PhonePe/Paytm)")
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showDonateDialog = false }) {
           Text("Close")
         }
       }

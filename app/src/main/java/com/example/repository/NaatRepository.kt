@@ -52,7 +52,7 @@ class NaatRepository {
       reciter = "Owais Raza Qadri",
       lyrics = "अब तो बस एक ही धुन है के मदीना देखूँ,\nरौज़ए اقدस और शहर का नगीना देखूँ।",
       hindiLyrics = "अब तो बस एक ही धुन है...",
-      gujaratiLyrics = "અબ તો બસ એક હી ધુન હૈ કે મદીના દેખૂં..."
+      gujaratiLyrics = "અબ તો બસ એક હી ધુન હૈ કે मदीना દેખૂં..."
     ),
     NaatItem(
       id = "4",
@@ -74,31 +74,33 @@ class NaatRepository {
     )
   )
 
-  private val cachedNaats = mutableListOf<NaatItem>().apply {
-    addAll(defaultNaats)
+  companion object {
+    private val cachedNaats = mutableListOf<NaatItem>()
+    private var isInitialized = false
   }
 
   suspend fun getNaats(): List<NaatItem> {
-    return try {
-      val db = firestore ?: return cachedNaats
-      val snapshot = db.collection("naats").get().await()
-      val list = snapshot.documents.mapNotNull { doc ->
-        doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
+    if (!isInitialized) {
+      cachedNaats.clear()
+      cachedNaats.addAll(defaultNaats)
+      isInitialized = true
+      try {
+        val db = firestore
+        if (db != null) {
+          val snapshot = db.collection("naats").get().await()
+          val list = snapshot.documents.mapNotNull { doc ->
+            doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
+          }
+          if (list.isNotEmpty()) {
+            cachedNaats.clear()
+            cachedNaats.addAll(list)
+          }
+        }
+      } catch (e: Exception) {
+        Log.d("NaatRepository", "Using default/cached naats")
       }
-      if (list.isNotEmpty()) {
-        cachedNaats.clear()
-        cachedNaats.addAll(list)
-        list
-      } else {
-        cachedNaats
-      }
-    } catch (e: Exception) {
-      Log.d("NaatRepository", "Using local cache (Firestore offline/permission restricted)")
-      if (cachedNaats.isEmpty()) {
-        cachedNaats.addAll(defaultNaats)
-      }
-      cachedNaats
     }
+    return cachedNaats
   }
 
   suspend fun addNaat(item: NaatItem): Boolean {
@@ -110,7 +112,7 @@ class NaatRepository {
         db.collection("naats").document(newItem.id).set(newItem).await()
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Saved locally (Firestore write restricted)")
+      Log.d("NaatRepository", "Added locally")
     }
     return true
   }
@@ -120,7 +122,7 @@ class NaatRepository {
     if (index >= 0) {
       cachedNaats[index] = item
     } else {
-      cachedNaats.add(item)
+      cachedNaats.add(0, item)
     }
     try {
       val db = firestore
@@ -128,7 +130,7 @@ class NaatRepository {
         db.collection("naats").document(item.id).set(item).await()
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Updated locally (Firestore write restricted)")
+      Log.d("NaatRepository", "Updated locally")
     }
     return true
   }
@@ -141,7 +143,7 @@ class NaatRepository {
         db.collection("naats").document(id).delete().await()
       }
     } catch (e: Exception) {
-      Log.d("NaatRepository", "Deleted locally (Firestore delete restricted)")
+      Log.d("NaatRepository", "Deleted locally")
     }
     return true
   }

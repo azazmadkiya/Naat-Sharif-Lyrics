@@ -181,22 +181,7 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
         }
       }
 
-      Spacer(modifier = Modifier.height(8.dp))
 
-      OutlinedButton(
-        onClick = {
-          viewModel.makeAdminForTest()
-          onLoginSuccess()
-        },
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(46.dp),
-        shape = RoundedCornerShape(12.dp)
-      ) {
-        Text("🚀 Quick Admin Access (Bypass Login)")
-      }
-
-      Spacer(modifier = Modifier.height(16.dp))
 
       TextButton(onClick = { 
         isSignUp = !isSignUp

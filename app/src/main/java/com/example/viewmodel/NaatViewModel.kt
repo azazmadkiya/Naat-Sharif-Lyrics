@@ -115,7 +115,11 @@ class NaatViewModel : ViewModel() {
       val result = authRepo.signIn(email, pass)
       if (result.isSuccess) {
         currentUser = authRepo.currentUser
-        isAdmin = isAdminRole || email.contains("admin", ignoreCase = true) || authRepo.isAdmin
+        val shouldBeAdmin = isAdminRole || email.contains("admin", ignoreCase = true)
+        if (shouldBeAdmin) {
+          authRepo.setAdminForUser(email, true)
+        }
+        isAdmin = authRepo.isAdmin
         onResult(true)
       } else {
         authError = result.exceptionOrNull()?.message ?: "Login failed"
@@ -130,7 +134,10 @@ class NaatViewModel : ViewModel() {
       val result = authRepo.signUp(email, pass)
       if (result.isSuccess) {
         currentUser = authRepo.currentUser
-        isAdmin = isAdminRole || authRepo.isAdmin
+        if (isAdminRole) {
+          authRepo.setAdminForUser(email, true)
+        }
+        isAdmin = authRepo.isAdmin
         onResult(true)
       } else {
         authError = result.exceptionOrNull()?.message ?: "Sign up failed"
@@ -165,6 +172,8 @@ class NaatViewModel : ViewModel() {
 
   // Helper for quick admin login override for evaluation
   fun makeAdminForTest() {
+    val email = currentUser?.email ?: "testadmin@naat.com"
+    authRepo.setAdminForUser(email, true)
     isAdmin = true
   }
 }

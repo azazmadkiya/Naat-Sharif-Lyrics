@@ -1,5 +1,7 @@
 package com.example.repository
 
+import android.content.Context
+import com.example.NaatApplication
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.tasks.await
@@ -13,6 +15,14 @@ class AuthRepository {
     }
   }
 
+  private val prefs by lazy {
+    try {
+      NaatApplication.instance.getSharedPreferences("NaatAdminPrefs", Context.MODE_PRIVATE)
+    } catch (e: Exception) {
+      null
+    }
+  }
+
   val currentUser: FirebaseUser?
     get() = try {
       auth?.currentUser
@@ -21,7 +31,24 @@ class AuthRepository {
     }
 
   val isAdmin: Boolean
-    get() = currentUser?.email?.lowercase()?.contains("admin") == true || currentUser?.email == "admin@naat.com"
+    get() {
+      val user = currentUser ?: return false
+      val email = user.email?.lowercase() ?: ""
+      if (email.contains("admin") || email == "admin@naat.com") return true
+      val savedAdminEmail = prefs?.getString("admin_email", null)
+      return savedAdminEmail != null && savedAdminEmail == email
+    }
+
+  fun setAdminForUser(email: String, isAdmin: Boolean) {
+    prefs?.edit()?.apply {
+      if (isAdmin) {
+        putString("admin_email", email.lowercase())
+      } else {
+        remove("admin_email")
+      }
+      apply()
+    }
+  }
 
   suspend fun signIn(email: String, pass: String): Result<FirebaseUser?> {
     return try {
@@ -55,6 +82,7 @@ class AuthRepository {
 
   fun signOut() {
     try {
+      prefs?.edit()?.remove("admin_email")?.apply()
       auth?.signOut()
     } catch (e: Exception) {
       // Ignore
