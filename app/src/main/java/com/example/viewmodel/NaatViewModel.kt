@@ -73,7 +73,7 @@ class NaatViewModel : ViewModel() {
 
   fun loadNaats() {
     viewModelScope.launch {
-      _naats.value = naatRepo.getNaats()
+      _naats.value = naatRepo.getNaats().toList()
     }
   }
 
