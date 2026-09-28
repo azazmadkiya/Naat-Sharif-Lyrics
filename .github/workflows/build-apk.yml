@@ -1,4 +1,4 @@
-name: Build Debug APK and AAB, Publish Release
+name: Build Debug APK and Publish Release
 
 on:
   push:

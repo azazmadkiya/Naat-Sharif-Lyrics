@@ -43,6 +43,16 @@ class AuthRepository {
     }
   }
 
+  suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+    return try {
+      val firebaseAuth = auth ?: return Result.failure(Exception("Firebase Auth not initialized"))
+      firebaseAuth.sendPasswordResetEmail(email).await()
+      Result.success(Unit)
+    } catch (e: Exception) {
+      Result.failure(e)
+    }
+  }
+
   fun signOut() {
     try {
       auth?.signOut()

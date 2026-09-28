@@ -1,5 +1,5 @@
 {
-  "name": "Naat Sharif Lyrics",
+  "name": "Naat Sharif Lyrics Hindi - Gujarati",
   "description": "Islamic Naat Sharif, Kalam Sharif lyrics searchable database categorized by reciter and type with dark mode and Firebase Auth.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Naat Sharif Lyrics"
+rootProject.name = "Naat Sharif Lyrics Hindi - Gujarati"
 
 include(":app")

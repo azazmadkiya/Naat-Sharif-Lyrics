@@ -115,6 +115,24 @@ class NaatViewModel : ViewModel() {
     isAdmin = false
   }
 
+  fun resetPassword(email: String, onResult: (Boolean, String?) -> Unit) {
+    viewModelScope.launch {
+      authError = null
+      if (email.isBlank()) {
+        onResult(false, "Please enter your email address first")
+        return@launch
+      }
+      val result = authRepo.sendPasswordResetEmail(email)
+      if (result.isSuccess) {
+        onResult(true, "Password reset email sent. Check your inbox.")
+      } else {
+        val err = result.exceptionOrNull()?.message ?: "Failed to send reset email"
+        authError = err
+        onResult(false, err)
+      }
+    }
+  }
+
   // Helper for quick admin login override for evaluation
   fun makeAdminForTest() {
     isAdmin = true

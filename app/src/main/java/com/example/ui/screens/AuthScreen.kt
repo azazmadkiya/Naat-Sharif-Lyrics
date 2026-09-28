@@ -23,6 +23,7 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
   var isSignUp by remember { mutableStateOf(false) }
   var selectedRole by remember { mutableStateOf("User") } // "User" or "Admin"
   var isLoading by remember { mutableStateOf(false) }
+  var resetMessage by remember { mutableStateOf<String?>(null) }
 
   Scaffold(
     topBar = {
@@ -76,6 +77,22 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
         shape = RoundedCornerShape(12.dp),
         singleLine = true
       )
+
+      if (!isSignUp) {
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+          TextButton(
+            onClick = {
+              viewModel.resetPassword(email) { success, msg ->
+                resetMessage = msg
+              }
+            }
+          ) {
+            Text("Forgot Password?", color = MaterialTheme.colorScheme.primary)
+          }
+        }
+      }
+
       Spacer(modifier = Modifier.height(16.dp))
 
       // If Sign Up, show Role Selection (User vs Admin)
@@ -127,6 +144,15 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
         Spacer(modifier = Modifier.height(12.dp))
       }
 
+      if (resetMessage != null) {
+        Text(
+          text = resetMessage ?: "",
+          color = MaterialTheme.colorScheme.primary,
+          style = MaterialTheme.typography.bodySmall
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+      }
+
       Button(
         onClick = {
           if (email.isNotBlank() && password.isNotBlank()) {
@@ -159,7 +185,10 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      TextButton(onClick = { isSignUp = !isSignUp }) {
+      TextButton(onClick = { 
+        isSignUp = !isSignUp
+        resetMessage = null
+      }) {
         Text(if (isSignUp) "Already have an account? Login" else "Don't have an account? Sign Up")
       }
     }
