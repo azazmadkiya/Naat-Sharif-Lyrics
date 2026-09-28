@@ -25,6 +25,7 @@ import com.example.viewmodel.NaatViewModel
 fun SettingScreen(
   viewModel: NaatViewModel,
   onNavigateAdmin: () -> Unit,
+  onNavigatePrivacy: () -> Unit,
   onLogout: () -> Unit,
   onBack: () -> Unit
 ) {
@@ -134,7 +135,7 @@ fun SettingScreen(
         ) {
           val shareIntent = Intent().apply {
             action = Intent.ACTION_SEND
-            putExtra(Intent.EXTRA_TEXT, "Check out Naat Sharif Hindi Lyrics App: https://play.google.com/store/apps/details?id=com.aistudio.naatsharif")
+            putExtra(Intent.EXTRA_TEXT, "Check out Naat Sharif & Kalam Sharif Hindi/Gujarati App! Download now from Google Play Store: https://play.google.com/store/apps/details?id=com.NaatSharif.Lyrics.azaz")
             type = "text/plain"
           }
           context.startActivity(Intent.createChooser(shareIntent, null))
@@ -149,9 +150,9 @@ fun SettingScreen(
           subtitle = "Give 5 stars on Play Store"
         ) {
           try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.aistudio.naatsharif")))
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.NaatSharif.Lyrics.azaz")))
           } catch (e: Exception) {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.aistudio.naatsharif")))
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.NaatSharif.Lyrics.azaz")))
           }
         }
       }
@@ -160,10 +161,10 @@ fun SettingScreen(
       item {
         SettingItem(
           icon = Icons.Default.PrivacyTip,
-          title = "Privacy Policy",
-          subtitle = "Read our privacy policy"
+          title = "Privacy Policy & Terms",
+          subtitle = "Read our privacy policy and terms"
         ) {
-          context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com")))
+          onNavigatePrivacy()
         }
       }
 

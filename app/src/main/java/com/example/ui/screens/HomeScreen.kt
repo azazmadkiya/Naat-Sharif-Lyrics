@@ -111,17 +111,13 @@ fun HomeScreen(
               }
               Spacer(modifier = Modifier.height(12.dp))
               Text(
-                text = "नातों का ख़ज़ाना",
-                style = MaterialTheme.typography.titleLarge,
+                text = "Naat Sharif / Kalam Sharif Hindi - Gujarati",
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = Color.White,
+                textAlign = TextAlign.Center
               )
-              Spacer(modifier = Modifier.height(8.dp))
-              Text(
-                text = "03 Jun 2026  |  17 Zil-Hijjah 1447 AH",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFFE5E7EB)
-              )
+
               Spacer(modifier = Modifier.height(16.dp))
 
               Button(
@@ -232,36 +228,7 @@ fun HomeScreen(
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
           )
-          
-          // QR Code Card representation
-          Surface(
-            modifier = Modifier.size(180.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = Color.White,
-            shadowElevation = 4.dp
-          ) {
-            Box(
-              modifier = Modifier.fillMaxSize().padding(12.dp),
-              contentAlignment = Alignment.Center
-            ) {
-              Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(
-                  shape = RoundedCornerShape(8.dp),
-                  color = MaterialTheme.colorScheme.primaryContainer,
-                  modifier = Modifier.size(100.dp)
-                ) {
-                  Box(contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                      Icon(Icons.Default.QrCode2, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-                      Text("Google Pay / UPI", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                    }
-                  }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("azazmadkiya@oksbi", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = Color.Black)
-              }
-            }
-          }
+
 
           // UPI ID box
           Surface(

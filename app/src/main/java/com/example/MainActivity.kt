@@ -110,6 +110,9 @@ fun NaatNavHost(viewModel: NaatViewModel) {
         onNavigateAdmin = {
           navController.navigate("admin_add")
         },
+        onNavigatePrivacy = {
+          navController.navigate("privacy_policy")
+        },
         onLogout = {
           navController.navigate("auth") {
             popUpTo("home") { inclusive = true }
@@ -124,6 +127,12 @@ fun NaatNavHost(viewModel: NaatViewModel) {
         onAdded = {
           navController.popBackStack()
         },
+        onBack = { navController.popBackStack() }
+      )
+    }
+    composable("privacy_policy") {
+      PrivacyPolicyScreen(
+        viewModel = viewModel,
         onBack = { navController.popBackStack() }
       )
     }
