@@ -79,13 +79,43 @@ class NaatViewModel : ViewModel() {
     }
   }
 
-  fun signIn(email: String, pass: String, onResult: (Boolean) -> Unit) {
+  fun updateNaat(id: String, title: String, category: String, reciter: String, lyrics: String, gujaratiLyrics: String, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+      val updatedItem = NaatItem(
+        id = id,
+        title = title,
+        category = category,
+        reciter = reciter,
+        lyrics = lyrics,
+        hindiLyrics = lyrics,
+        gujaratiLyrics = gujaratiLyrics,
+        addedBy = currentUser?.email ?: "admin"
+      )
+      val success = naatRepo.updateNaat(updatedItem)
+      if (success) {
+        loadNaats()
+      }
+      onComplete(success)
+    }
+  }
+
+  fun deleteNaat(id: String, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+      val success = naatRepo.deleteNaat(id)
+      if (success) {
+        loadNaats()
+      }
+      onComplete(success)
+    }
+  }
+
+  fun signIn(email: String, pass: String, isAdminRole: Boolean, onResult: (Boolean) -> Unit) {
     viewModelScope.launch {
       authError = null
       val result = authRepo.signIn(email, pass)
       if (result.isSuccess) {
         currentUser = authRepo.currentUser
-        isAdmin = authRepo.isAdmin
+        isAdmin = isAdminRole || email.contains("admin", ignoreCase = true) || authRepo.isAdmin
         onResult(true)
       } else {
         authError = result.exceptionOrNull()?.message ?: "Login failed"

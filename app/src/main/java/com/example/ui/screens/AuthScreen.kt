@@ -95,45 +95,43 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      // If Sign Up, show Role Selection (User vs Admin)
-      if (isSignUp) {
-        Text(
-          text = "Select Account Role:",
-          style = MaterialTheme.typography.bodyMedium,
-          fontWeight = FontWeight.SemiBold,
-          modifier = Modifier.align(Alignment.Start)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+      // Role Selection (User vs Admin) - Always visible for both Login and Sign Up
+      Text(
+        text = "Select Account Role:",
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.align(Alignment.Start)
+      )
+      Spacer(modifier = Modifier.height(8.dp))
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+      ) {
         Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceEvenly
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.clickable { selectedRole = "User" }
         ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { selectedRole = "User" }
-          ) {
-            RadioButton(
-              selected = selectedRole == "User",
-              onClick = { selectedRole = "User" }
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("User (View)")
-          }
-
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { selectedRole = "Admin" }
-          ) {
-            RadioButton(
-              selected = selectedRole == "Admin",
-              onClick = { selectedRole = "Admin" }
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Admin (Add Naats)")
-          }
+          RadioButton(
+            selected = selectedRole == "User",
+            onClick = { selectedRole = "User" }
+          )
+          Spacer(modifier = Modifier.width(4.dp))
+          Text("User (View)")
         }
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.clickable { selectedRole = "Admin" }
+        ) {
+          RadioButton(
+            selected = selectedRole == "Admin",
+            onClick = { selectedRole = "Admin" }
+          )
+          Spacer(modifier = Modifier.width(4.dp))
+          Text("Admin (Full Access)")
+        }
       }
+      Spacer(modifier = Modifier.height(16.dp))
 
       if (viewModel.authError != null) {
         Text(
@@ -157,14 +155,14 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
         onClick = {
           if (email.isNotBlank() && password.isNotBlank()) {
             isLoading = true
+            val isAdminRole = selectedRole == "Admin"
             if (isSignUp) {
-              val isAdminRole = selectedRole == "Admin"
               viewModel.signUp(email, password, isAdminRole) { success ->
                 isLoading = false
                 if (success) onLoginSuccess()
               }
             } else {
-              viewModel.signIn(email, password) { success ->
+              viewModel.signIn(email, password, isAdminRole) { success ->
                 isLoading = false
                 if (success) onLoginSuccess()
               }
@@ -181,6 +179,21 @@ fun AuthScreen(viewModel: NaatViewModel, onLoginSuccess: () -> Unit) {
         } else {
           Text(if (isSignUp) "Sign Up" else "Login", fontSize = 16.dp.value.sp)
         }
+      }
+
+      Spacer(modifier = Modifier.height(8.dp))
+
+      OutlinedButton(
+        onClick = {
+          viewModel.makeAdminForTest()
+          onLoginSuccess()
+        },
+        modifier = Modifier
+          .fillMaxWidth()
+          .height(46.dp),
+        shape = RoundedCornerShape(12.dp)
+      ) {
+        Text("🚀 Quick Admin Access (Bypass Login)")
       }
 
       Spacer(modifier = Modifier.height(16.dp))

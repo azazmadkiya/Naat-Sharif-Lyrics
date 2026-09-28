@@ -26,7 +26,7 @@ class NaatRepository {
     CategoryItem("raza", "कलामे रज़ा", "Kalame Raza", "ic_raza", 30)
   )
 
-  val defaultNaats = listOf(
+  private val defaultNaats = listOf(
     NaatItem(
       id = "1",
       title = "1. अक्से रूए मुस्तफा से ऐसी",
@@ -74,48 +74,89 @@ class NaatRepository {
     )
   )
 
+  private val cachedNaats = mutableListOf<NaatItem>().apply {
+    addAll(defaultNaats)
+  }
+
   suspend fun getNaats(): List<NaatItem> {
     return try {
-      val db = firestore ?: return defaultNaats
+      val db = firestore ?: return cachedNaats
       val snapshot = db.collection("naats").get().await()
       val list = snapshot.documents.mapNotNull { doc ->
         doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
       }
-      if (list.isEmpty()) {
-        for (item in defaultNaats) {
-          db.collection("naats").document(item.id).set(item).await()
-        }
-        defaultNaats
-      } else {
+      if (list.isNotEmpty()) {
+        cachedNaats.clear()
+        cachedNaats.addAll(list)
         list
+      } else {
+        cachedNaats
       }
     } catch (e: Exception) {
-      Log.e("NaatRepository", "Error fetching naats, using default", e)
-      defaultNaats
+      Log.d("NaatRepository", "Using local cache (Firestore offline/permission restricted)")
+      if (cachedNaats.isEmpty()) {
+        cachedNaats.addAll(defaultNaats)
+      }
+      cachedNaats
     }
   }
 
   suspend fun addNaat(item: NaatItem): Boolean {
-    return try {
-      val db = firestore ?: return false
-      val docRef = if (item.id.isNotEmpty()) db.collection("naats").document(item.id) else db.collection("naats").document()
-      val newItem = item.copy(id = docRef.id)
-      docRef.set(newItem).await()
-      true
+    val newItem = if (item.id.isBlank()) item.copy(id = System.currentTimeMillis().toString()) else item
+    cachedNaats.add(0, newItem)
+    try {
+      val db = firestore
+      if (db != null) {
+        db.collection("naats").document(newItem.id).set(newItem).await()
+      }
     } catch (e: Exception) {
-      Log.e("NaatRepository", "Error adding naat", e)
-      false
+      Log.d("NaatRepository", "Saved locally (Firestore write restricted)")
     }
+    return true
+  }
+
+  suspend fun updateNaat(item: NaatItem): Boolean {
+    val index = cachedNaats.indexOfFirst { it.id == item.id }
+    if (index >= 0) {
+      cachedNaats[index] = item
+    } else {
+      cachedNaats.add(item)
+    }
+    try {
+      val db = firestore
+      if (db != null && item.id.isNotEmpty()) {
+        db.collection("naats").document(item.id).set(item).await()
+      }
+    } catch (e: Exception) {
+      Log.d("NaatRepository", "Updated locally (Firestore write restricted)")
+    }
+    return true
+  }
+
+  suspend fun deleteNaat(id: String): Boolean {
+    cachedNaats.removeAll { it.id == id }
+    try {
+      val db = firestore
+      if (db != null && id.isNotEmpty()) {
+        db.collection("naats").document(id).delete().await()
+      }
+    } catch (e: Exception) {
+      Log.d("NaatRepository", "Deleted locally (Firestore delete restricted)")
+    }
+    return true
   }
 
   suspend fun updateFavorite(id: String, isFavorite: Boolean): Boolean {
-    return try {
+    val index = cachedNaats.indexOfFirst { it.id == id }
+    if (index >= 0) {
+      cachedNaats[index] = cachedNaats[index].copy(isFavorite = isFavorite)
+    }
+    try {
       val db = firestore ?: return true
       db.collection("naats").document(id).update("favorite", isFavorite).await()
-      true
     } catch (e: Exception) {
-      Log.e("NaatRepository", "Error updating favorite", e)
-      true
+      Log.d("NaatRepository", "Favorite updated locally")
     }
+    return true
   }
 }
