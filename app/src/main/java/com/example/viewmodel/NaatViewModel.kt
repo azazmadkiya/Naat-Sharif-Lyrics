@@ -21,7 +21,7 @@ class NaatViewModel : ViewModel() {
   private val naatRepo = NaatRepository()
   private val authRepo = AuthRepository()
 
-  var categories by mutableStateOf<List<CategoryItem>>(emptyList())
+  var categories by mutableStateOf<List<CategoryItem>>(naatRepo.defaultCategories)
     private set
 
   private val _naats = MutableStateFlow<List<NaatItem>>(emptyList())
@@ -51,9 +51,7 @@ class NaatViewModel : ViewModel() {
             android.util.Log.w("NaatViewModel", "Realtime collect note: ${e.message}")
           }
           .collect { list ->
-            if (list.isNotEmpty()) {
-              _naats.value = list.map { it.toNaatItem() }
-            }
+            _naats.value = list.map { it.toNaatItem() }
           }
       } catch (e: Exception) {
         android.util.Log.w("NaatViewModel", "Realtime collect catch: ${e.message}")
@@ -110,6 +108,30 @@ class NaatViewModel : ViewModel() {
       val success = naatRepo.deleteCategory(id)
       if (success) loadCategories()
       onComplete(success)
+    }
+  }
+
+  fun moveCategoryUp(index: Int) {
+    if (index <= 0 || index >= categories.size) return
+    val list = categories.toMutableList()
+    val item = list.removeAt(index)
+    list.add(index - 1, item)
+    val reordered = list.mapIndexed { idx, cat -> cat.copy(order = idx) }
+    categories = reordered
+    viewModelScope.launch {
+      naatRepo.saveCategoriesOrder(reordered)
+    }
+  }
+
+  fun moveCategoryDown(index: Int) {
+    if (index < 0 || index >= categories.size - 1) return
+    val list = categories.toMutableList()
+    val item = list.removeAt(index)
+    list.add(index + 1, item)
+    val reordered = list.mapIndexed { idx, cat -> cat.copy(order = idx) }
+    categories = reordered
+    viewModelScope.launch {
+      naatRepo.saveCategoriesOrder(reordered)
     }
   }
 

@@ -20,15 +20,15 @@ class NaatRepository {
     }
     private val naatsCollection = firestore?.collection("naats")
 
-    private val defaultCategories = listOf(
-        CategoryItem("hamd", "हम्द शरीफ", "Hamd Sharif", "ic_hamd", 0),
-        CategoryItem("naat", "नात शरीफ", "Naat Sharif", "ic_naat", 0),
-        CategoryItem("manqabat", "मनक़बत शरीफ", "Manqabat Sharif", "ic_manqabat", 0),
-        CategoryItem("panjtan", "पंजतन पाक", "Panjtan Pak", "ic_panjtan", 0),
-        CategoryItem("gouse", "गौसे आज़म", "Gouse Azam", "ic_gouse", 0),
-        CategoryItem("gareeb", "गरीब नवाज़", "Gareeb Nawaz", "ic_gareeb", 0),
-        CategoryItem("tazeem", "तज़ीम कलाम", "Tazeem Kalam", "ic_tazeem", 0),
-        CategoryItem("raza", "कलामे रज़ा", "Kalame Raza", "ic_raza", 0)
+    val defaultCategories = listOf(
+        CategoryItem("hamd", "हम्द शरीफ", "Hamd Sharif", "ic_hamd", 0, "", 0),
+        CategoryItem("naat", "नात शरीफ", "Naat Sharif", "ic_naat", 0, "", 1),
+        CategoryItem("manqabat", "मनक़बत शरीफ", "Manqabat Sharif", "ic_manqabat", 0, "", 2),
+        CategoryItem("panjtan", "पंजतन पाक", "Panjtan Pak", "ic_panjtan", 0, "", 3),
+        CategoryItem("gouse", "गौसे आज़म", "Gouse Azam", "ic_gouse", 0, "", 4),
+        CategoryItem("gareeb", "गरीब नवाज़", "Gareeb Nawaz", "ic_gareeb", 0, "", 5),
+        CategoryItem("tazeem", "तज़ीम कलाम", "Tazeem Kalam", "ic_tazeem", 0, "", 6),
+        CategoryItem("raza", "कलामे रज़ा", "Kalame Raza", "ic_raza", 0, "", 7)
     )
 
     companion object {
@@ -60,7 +60,7 @@ class NaatRepository {
         return naat
     }
 
-    private fun mapDocToCategory(doc: com.google.firebase.firestore.DocumentSnapshot): CategoryItem {
+    private fun mapDocToCategory(doc: com.google.firebase.firestore.DocumentSnapshot, defaultIndex: Int): CategoryItem {
         val obj = doc.toObject(CategoryItem::class.java)?.apply { this.id = doc.id }
             ?: CategoryItem(id = doc.id)
         val docTitle = doc.getString("title") 
@@ -72,6 +72,7 @@ class NaatRepository {
             ?: doc.getString("subTitle") 
             ?: doc.getString("desc") 
             ?: ""
+        val docOrder = doc.getLong("order")?.toInt() ?: doc.getLong("position")?.toInt() ?: defaultIndex
 
         val finalTitle = if (obj.title.isNotBlank()) obj.title 
             else if (docTitle.isNotBlank()) docTitle 
@@ -81,10 +82,13 @@ class NaatRepository {
             else if (docSubtitle.isNotBlank()) docSubtitle 
             else obj.getDisplaySubtitle()
 
+        val finalOrder = if (doc.contains("order")) docOrder else if (obj.order != 0) obj.order else defaultIndex
+
         return obj.copy(
             id = doc.id,
             title = finalTitle,
-            subtitle = finalSubtitle
+            subtitle = finalSubtitle,
+            order = finalOrder
         )
     }
 
@@ -144,14 +148,14 @@ class NaatRepository {
         if (cachedCategories.isEmpty()) {
             cachedCategories.addAll(defaultCategories)
         }
-        onUpdate(cachedCategories)
+        onUpdate(cachedCategories.sortedBy { it.order })
         try {
             firestore?.collection("categories")?.addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
                 if (snapshot != null) {
-                    val list = snapshot.documents.mapNotNull { doc ->
-                        mapDocToCategory(doc)
-                    }
+                    val list = snapshot.documents.mapIndexed { index, doc ->
+                        mapDocToCategory(doc, index)
+                    }.sortedBy { it.order }
                     cachedCategories.clear()
                     if (list.isNotEmpty()) {
                         cachedCategories.addAll(list)
@@ -171,9 +175,9 @@ class NaatRepository {
             val db = firestore
             if (db != null) {
                 val snapshot = db.collection("categories").get().await()
-                val list = snapshot.documents.mapNotNull { doc ->
-                    mapDocToCategory(doc)
-                }
+                val list = snapshot.documents.mapIndexed { index, doc ->
+                    mapDocToCategory(doc, index)
+                }.sortedBy { it.order }
                 cachedCategories.clear()
                 if (list.isNotEmpty()) {
                     cachedCategories.addAll(list)
@@ -193,11 +197,27 @@ class NaatRepository {
         if (cachedCategories.isEmpty()) {
             cachedCategories.addAll(defaultCategories)
         }
-        return cachedCategories
+        return cachedCategories.sortedBy { it.order }
+    }
+
+    suspend fun saveCategoriesOrder(categories: List<CategoryItem>): Boolean {
+        cachedCategories.clear()
+        cachedCategories.addAll(categories)
+        try {
+            val db = firestore ?: return true
+            for ((index, cat) in categories.withIndex()) {
+                val map = mapOf("order" to index)
+                db.collection("categories").document(cat.id).update(map).await()
+            }
+        } catch (e: Exception) {
+            Log.w("NaatRepository", "Reorder categories update notice: ${e.message}")
+        }
+        return true
     }
 
     suspend fun addCategory(item: CategoryItem): Boolean {
-        val newItem = if (item.id.isBlank()) item.copy(id = item.title.lowercase().replace(" ", "_")) else item
+        val count = cachedCategories.size
+        val newItem = if (item.id.isBlank()) item.copy(id = item.title.lowercase().replace(" ", "_"), order = count) else item.copy(order = count)
         if (!cachedCategories.any { it.id == newItem.id }) {
             cachedCategories.add(newItem)
         }

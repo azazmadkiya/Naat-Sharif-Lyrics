@@ -5,12 +5,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -247,34 +250,58 @@ fun AdminAddScreen(
                 .padding(16.dp),
               verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-              items(categories) { cat ->
+              itemsIndexed(categories) { index, cat ->
                 Card(
                   modifier = Modifier.fillMaxWidth(),
                   shape = RoundedCornerShape(12.dp),
-                  colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                  colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                  elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                   Row(
                     modifier = Modifier
                       .fillMaxWidth()
-                      .padding(16.dp),
+                      .padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                   ) {
                     Column(modifier = Modifier.weight(1f)) {
                       Text(
-                        text = cat.title,
+                        text = "${index + 1}. ${cat.getDisplayTitle()}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                       )
                       Spacer(modifier = Modifier.height(2.dp))
                       Text(
-                        text = "${cat.subtitle} (ID: ${cat.id})",
+                        text = "${cat.getDisplaySubtitle()} (ID: ${cat.id})",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                       )
                     }
-                    Row {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                      // Move Up Button (Uper karein)
+                      IconButton(
+                        onClick = { viewModel.moveCategoryUp(index) },
+                        enabled = index > 0
+                      ) {
+                        Icon(
+                          imageVector = Icons.Default.ArrowUpward,
+                          contentDescription = "Move Up",
+                          tint = if (index > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                      }
+                      // Move Down Button (Niche karein)
+                      IconButton(
+                        onClick = { viewModel.moveCategoryDown(index) },
+                        enabled = index < categories.size - 1
+                      ) {
+                        Icon(
+                          imageVector = Icons.Default.ArrowDownward,
+                          contentDescription = "Move Down",
+                          tint = if (index < categories.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        )
+                      }
+                      // Edit Button
                       IconButton(onClick = {
                         editingCategoryId = cat.id
                         catTitle = cat.title
@@ -282,8 +309,9 @@ fun AdminAddScreen(
                         catIcon = cat.iconName.ifBlank { "ic_naat" }
                         showCategoryDialog = true
                       }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit Category", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Edit, contentDescription = "Edit Category", tint = MaterialTheme.colorScheme.secondary)
                       }
+                      // Delete Button
                       IconButton(onClick = { deleteCategoryTarget = cat }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete Category", tint = MaterialTheme.colorScheme.error)
                       }

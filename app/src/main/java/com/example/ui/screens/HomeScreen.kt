@@ -199,7 +199,7 @@ fun HomeScreen(
       ) {
         items(viewModel.categories) { cat ->
           CategoryCard(category = cat) {
-            onCategoryClick(cat.id, cat.title)
+            onCategoryClick(cat.id, cat.getDisplayTitle())
           }
         }
       }

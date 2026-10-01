@@ -19,7 +19,8 @@ data class CategoryItem(
   var subtitle: String = "",
   var iconName: String = "",
   var count: Int = 0,
-  var name: String = ""
+  var name: String = "",
+  var order: Int = 0
 ) {
   fun getDisplayTitle(): String {
     if (title.isNotBlank()) return title
