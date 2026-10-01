@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,10 +27,14 @@ fun SettingScreen(
   viewModel: NaatViewModel,
   onNavigateAdmin: () -> Unit,
   onNavigatePrivacy: () -> Unit,
+  onNavigateLogin: () -> Unit,
   onLogout: () -> Unit,
   onBack: () -> Unit
 ) {
   val context = LocalContext.current
+  var showLogoutDialog by remember { mutableStateOf(false) }
+  val currentUserItem = viewModel.getCurrentUserItem()
+  val isUserLoggedIn = viewModel.isLoggedIn || viewModel.isAdmin
 
   Scaffold(
     topBar = {
@@ -56,8 +61,96 @@ fun SettingScreen(
         .padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-      // Admin Section if logged in as Admin / Editor / Content Manager
-      val currentUserItem = viewModel.getCurrentUserItem()
+      // Top Account Status Header
+      item {
+        Card(
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(16.dp),
+          colors = CardDefaults.cardColors(
+            containerColor = if (isUserLoggedIn) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+          ),
+          elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Surface(
+              shape = RoundedCornerShape(50),
+              color = if (isUserLoggedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+              modifier = Modifier.size(48.dp)
+            ) {
+              Box(contentAlignment = Alignment.Center) {
+                Icon(
+                  imageVector = if (isUserLoggedIn) Icons.Default.Person else Icons.Default.AccountCircle,
+                  contentDescription = null,
+                  tint = Color.White,
+                  modifier = Modifier.size(28.dp)
+                )
+              }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+              if (isUserLoggedIn) {
+                Text(
+                  text = viewModel.loggedInEmail ?: "Admin User",
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Surface(
+                  shape = RoundedCornerShape(4.dp),
+                  color = MaterialTheme.colorScheme.primary
+                ) {
+                  Text(
+                    text = currentUserItem.getRoleDisplayName(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                  )
+                }
+              } else {
+                Text(
+                  text = "Guest User",
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                  text = "Login to access Admin rights or add Naats",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+              }
+            }
+
+            if (isUserLoggedIn) {
+              IconButton(onClick = { showLogoutDialog = true }) {
+                Icon(
+                  Icons.Default.Logout,
+                  contentDescription = "Logout",
+                  tint = MaterialTheme.colorScheme.error
+                )
+              }
+            } else {
+              Button(
+                onClick = onNavigateLogin,
+                shape = RoundedCornerShape(8.dp)
+              ) {
+                Text("Login")
+              }
+            }
+          }
+        }
+      }
+
+      // Admin Section if logged in as Admin / Editor
       if (viewModel.isAdmin || currentUserItem.isAdminRole() || currentUserItem.isAddNaatRole()) {
         item {
           Card(
@@ -65,7 +158,8 @@ fun SettingScreen(
               .fillMaxWidth()
               .clickable(onClick = onNavigateAdmin),
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
           ) {
             Row(
               modifier = Modifier
@@ -80,15 +174,15 @@ fun SettingScreen(
                   text = "Admin Dashboard",
                   style = MaterialTheme.typography.titleMedium,
                   fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.onPrimaryContainer
+                  color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                   text = "Role: ${currentUserItem.getRoleDisplayName()} • Manage Naats, Categories & Rights",
                   style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
               }
-              Icon(Icons.Default.ChevronRight, contentDescription = null)
+              Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
           }
         }
@@ -169,18 +263,25 @@ fun SettingScreen(
         }
       }
 
-
-
-      // Logout
-      if (viewModel.currentUser != null) {
+      // Explicit Login / Logout Row
+      if (isUserLoggedIn) {
         item {
           SettingItem(
             icon = Icons.Default.Logout,
             title = "Logout",
-            subtitle = "Sign out of your account"
+            subtitle = "Sign out from ${viewModel.loggedInEmail ?: "your account"}"
           ) {
-            viewModel.signOut()
-            onLogout()
+            showLogoutDialog = true
+          }
+        }
+      } else {
+        item {
+          SettingItem(
+            icon = Icons.Default.Login,
+            title = "Login / Sign In",
+            subtitle = "Sign in with your email address for Admin or Editor access"
+          ) {
+            onNavigateLogin()
           }
         }
       }
@@ -263,6 +364,33 @@ fun SettingScreen(
         Spacer(modifier = Modifier.height(16.dp))
       }
     }
+  }
+
+  // Logout Dialog
+  if (showLogoutDialog) {
+    AlertDialog(
+      onDismissRequest = { showLogoutDialog = false },
+      title = { Text("Confirm Logout") },
+      text = { Text("Are you sure you want to log out of your account?") },
+      confirmButton = {
+        Button(
+          onClick = {
+            showLogoutDialog = false
+            viewModel.signOut()
+            Toast.makeText(context, "Logged out successfully", Toast.LENGTH_SHORT).show()
+            onLogout()
+          },
+          colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) {
+          Text("Logout")
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showLogoutDialog = false }) {
+          Text("Cancel")
+        }
+      }
+    )
   }
 }
 

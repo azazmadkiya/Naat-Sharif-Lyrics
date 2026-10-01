@@ -34,7 +34,7 @@ fun FavoritesScreen(
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text("Favorite Naats", fontWeight = FontWeight.Bold) },
+        title = { Text("Favorite Naats (${favoriteNaats.size})", fontWeight = FontWeight.Bold) },
         navigationIcon = {
           IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -60,12 +60,19 @@ fun FavoritesScreen(
             Icons.Default.Favorite,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
           )
           Spacer(modifier = Modifier.height(16.dp))
           Text(
-            text = "No favorite Naats added yet.",
-            style = MaterialTheme.typography.bodyLarge,
+            text = "No favorite Naats added yet",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+          )
+          Spacer(modifier = Modifier.height(6.dp))
+          Text(
+            text = "Open any Naat Sharif and tap the heart icon to save here.",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
         }
@@ -88,7 +95,8 @@ fun FavoritesScreen(
                 onNaatClick(naat)
               },
             shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
           ) {
             Row(
               modifier = Modifier
@@ -96,18 +104,27 @@ fun FavoritesScreen(
                 .padding(16.dp),
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Text(
-                text = naat.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
-              )
-              Icon(
-                Icons.Default.Favorite,
-                contentDescription = null,
-                tint = Color.Red
-              )
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = naat.title,
+                  style = MaterialTheme.typography.titleMedium,
+                  fontWeight = FontWeight.Bold,
+                  color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                  text = "Reciter: ${naat.reciter.ifBlank { "Traditional" }}",
+                  style = MaterialTheme.typography.bodySmall,
+                  color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+              }
+              IconButton(onClick = { viewModel.toggleFavorite(naat) }) {
+                Icon(
+                  Icons.Default.Favorite,
+                  contentDescription = "Toggle Favorite",
+                  tint = Color.Red
+                )
+              }
             }
           }
         }

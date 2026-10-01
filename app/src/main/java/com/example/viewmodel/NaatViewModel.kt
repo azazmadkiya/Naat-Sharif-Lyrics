@@ -10,6 +10,7 @@ import com.example.model.CategoryItem
 import com.example.model.NaatItem
 import com.example.model.toNaatItem
 import com.example.repository.AuthRepository
+import com.example.repository.FavoritesRepository
 import com.example.repository.NaatRepository
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 class NaatViewModel : ViewModel() {
   private val naatRepo = NaatRepository()
   private val authRepo = AuthRepository()
+  private val favoritesRepo = FavoritesRepository()
 
   var categories by mutableStateOf<List<CategoryItem>>(naatRepo.defaultCategories)
     private set
@@ -39,6 +41,8 @@ class NaatViewModel : ViewModel() {
   var fontSizeScale by mutableStateOf(18f) // sp for lyrics reading
 
   var currentUser by mutableStateOf<FirebaseUser?>(authRepo.currentUser)
+  var isLoggedIn by mutableStateOf(authRepo.isLoggedIn)
+  var loggedInEmail by mutableStateOf(authRepo.loggedInEmail)
   var isAdmin by mutableStateOf(authRepo.isAdmin)
   var authError by mutableStateOf<String?>(null)
 
@@ -47,6 +51,17 @@ class NaatViewModel : ViewModel() {
   var isRefreshing by mutableStateOf(false)
 
   init {
+    // 1. Sync & listen to user favorites across devices via Firestore
+    favoritesRepo.syncUserFavorites(loggedInEmail ?: currentUser?.email)
+    viewModelScope.launch {
+      favoritesRepo.favoriteIds.collect { favSet ->
+        _naats.value = _naats.value.map { it.copy(isFavorite = favSet.contains(it.id)) }
+        if (selectedNaat != null) {
+          selectedNaat = selectedNaat?.copy(isFavorite = favSet.contains(selectedNaat!!.id))
+        }
+      }
+    }
+
     refreshData()
     viewModelScope.launch {
       try {
@@ -55,7 +70,7 @@ class NaatViewModel : ViewModel() {
             android.util.Log.w("NaatViewModel", "Realtime collect note: ${e.message}")
           }
           .collect { list ->
-            _naats.value = list.map { it.toNaatItem() }
+            _naats.value = applyFavorites(list.map { it.toNaatItem() })
           }
       } catch (e: Exception) {
         android.util.Log.w("NaatViewModel", "Realtime collect catch: ${e.message}")
@@ -69,6 +84,11 @@ class NaatViewModel : ViewModel() {
     }
   }
 
+  fun applyFavorites(items: List<NaatItem>): List<NaatItem> {
+    val favSet = favoritesRepo.favoriteIds.value
+    return items.map { it.copy(isFavorite = favSet.contains(it.id)) }
+  }
+
   fun refreshData() {
     viewModelScope.launch {
       isRefreshing = true
@@ -77,7 +97,7 @@ class NaatViewModel : ViewModel() {
         val fetchedNaats = naatRepo.getNaats()
         val fetchedCategories = naatRepo.getCategories()
         val fetchedUsers = naatRepo.getUsers()
-        _naats.value = fetchedNaats.toList()
+        _naats.value = applyFavorites(fetchedNaats.toList())
         categories = fetchedCategories
         users = fetchedUsers
         isConnected = true
@@ -95,7 +115,7 @@ class NaatViewModel : ViewModel() {
   // ==================== User Rights & RBAC Helpers ====================
 
   fun getCurrentUserItem(): AppUserItem {
-    val email = currentUser?.email?.lowercase()?.trim() ?: ""
+    val email = loggedInEmail?.lowercase()?.trim() ?: currentUser?.email?.lowercase()?.trim() ?: ""
     if (email == "azazmadkiya@gmail.com") {
       return AppUserItem(
         id = "admin_owner",
@@ -270,22 +290,18 @@ class NaatViewModel : ViewModel() {
 
   fun loadNaats() {
     viewModelScope.launch {
-      _naats.value = naatRepo.getNaats().toList()
+      _naats.value = applyFavorites(naatRepo.getNaats().toList())
     }
   }
 
   fun toggleFavorite(naat: NaatItem) {
-    viewModelScope.launch {
-      val updatedFav = !naat.isFavorite
-      _naats.value = _naats.value.map {
-        if (it.id == naat.id) it.copy(isFavorite = updatedFav) else it
-      }
-      val success = naatRepo.updateFavorite(naat.id, updatedFav)
-      if (success) {
-        if (selectedNaat?.id == naat.id) {
-          selectedNaat = selectedNaat?.copy(isFavorite = updatedFav)
-        }
-      }
+    val userEmail = loggedInEmail ?: currentUser?.email
+    val newFav = favoritesRepo.toggleFavorite(naat.id, userEmail)
+    _naats.value = _naats.value.map {
+      if (it.id == naat.id) it.copy(isFavorite = newFav) else it
+    }
+    if (selectedNaat?.id == naat.id) {
+      selectedNaat = selectedNaat?.copy(isFavorite = newFav)
     }
   }
 
@@ -298,7 +314,7 @@ class NaatViewModel : ViewModel() {
         lyrics = lyrics,
         hindiLyrics = lyrics,
         gujaratiLyrics = gujaratiLyrics,
-        addedBy = currentUser?.email ?: "admin"
+        addedBy = loggedInEmail ?: currentUser?.email ?: "admin"
       )
       val success = naatRepo.addNaat(newItem)
       if (success) {
@@ -318,7 +334,7 @@ class NaatViewModel : ViewModel() {
         lyrics = lyrics,
         hindiLyrics = lyrics,
         gujaratiLyrics = gujaratiLyrics,
-        addedBy = currentUser?.email ?: "admin"
+        addedBy = loggedInEmail ?: currentUser?.email ?: "admin"
       )
       val success = naatRepo.updateNaat(updatedItem)
       if (success) {
@@ -345,12 +361,11 @@ class NaatViewModel : ViewModel() {
       authError = null
       val result = authRepo.signIn(email, pass)
       if (result.isSuccess) {
-        currentUser = authRepo.currentUser
-        val shouldBeAdmin = isAdminRole || email.contains("admin", ignoreCase = true) || email.lowercase() == "azazmadkiya@gmail.com"
-        if (shouldBeAdmin) {
-          authRepo.setAdminForUser(email, true)
-        }
+        isLoggedIn = true
+        loggedInEmail = authRepo.loggedInEmail
         isAdmin = authRepo.isAdmin
+        currentUser = authRepo.currentUser
+        favoritesRepo.syncUserFavorites(loggedInEmail ?: currentUser?.email)
         onResult(true)
       } else {
         authError = result.exceptionOrNull()?.message ?: "Login failed"
@@ -364,11 +379,11 @@ class NaatViewModel : ViewModel() {
       authError = null
       val result = authRepo.signUp(email, pass)
       if (result.isSuccess) {
-        currentUser = authRepo.currentUser
-        if (isAdminRole || email.lowercase() == "azazmadkiya@gmail.com") {
-          authRepo.setAdminForUser(email, true)
-        }
+        isLoggedIn = true
+        loggedInEmail = authRepo.loggedInEmail
         isAdmin = authRepo.isAdmin
+        currentUser = authRepo.currentUser
+        favoritesRepo.syncUserFavorites(loggedInEmail ?: currentUser?.email)
         onResult(true)
       } else {
         authError = result.exceptionOrNull()?.message ?: "Sign up failed"
@@ -379,8 +394,11 @@ class NaatViewModel : ViewModel() {
 
   fun signOut() {
     authRepo.signOut()
+    isLoggedIn = false
+    loggedInEmail = null
     currentUser = null
     isAdmin = false
+    favoritesRepo.syncUserFavorites(null)
   }
 
   fun resetPassword(email: String, onResult: (Boolean, String?) -> Unit) {
@@ -402,8 +420,11 @@ class NaatViewModel : ViewModel() {
   }
 
   fun makeAdminForTest() {
-    val email = currentUser?.email ?: "testadmin@naat.com"
+    val email = loggedInEmail ?: "azazmadkiya@gmail.com"
     authRepo.setAdminForUser(email, true)
+    isLoggedIn = true
+    loggedInEmail = email
     isAdmin = true
+    favoritesRepo.syncUserFavorites(email)
   }
 }

@@ -52,11 +52,17 @@ fun NaatNavHost(viewModel: NaatViewModel) {
       )
     }
     composable("auth") {
-      AuthScreen(viewModel = viewModel) {
-        navController.navigate("home") {
-          popUpTo("auth") { inclusive = true }
+      AuthScreen(
+        viewModel = viewModel,
+        onLoginSuccess = {
+          navController.navigate("home") {
+            popUpTo("auth") { inclusive = true }
+          }
+        },
+        onBack = {
+          navController.popBackStack()
         }
-      }
+      )
     }
     composable("home") {
       HomeScreen(
@@ -121,10 +127,11 @@ fun NaatNavHost(viewModel: NaatViewModel) {
         onNavigatePrivacy = {
           navController.navigate("privacy_policy")
         },
+        onNavigateLogin = {
+          navController.navigate("auth")
+        },
         onLogout = {
-          navController.navigate("auth") {
-            popUpTo("home") { inclusive = true }
-          }
+          // Stay on settings screen with updated logged-out state
         },
         onBack = { navController.popBackStack() }
       )

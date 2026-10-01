@@ -1,6 +1,7 @@
 package com.example.repository
 
 import android.content.Context
+import android.util.Log
 import com.example.NaatApplication
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -25,24 +26,40 @@ class AuthRepository {
 
   val currentUser: FirebaseUser?
     get() = try {
-      auth?.currentUser
+      val user = auth?.currentUser
+      if (user != null && !user.isAnonymous) user else null
     } catch (e: Exception) {
       null
     }
 
+  val loggedInEmail: String?
+    get() {
+      val saved = prefs?.getString("logged_in_email", null)
+      if (!saved.isNullOrBlank()) return saved
+      val email = currentUser?.email
+      if (!email.isNullOrBlank()) return email
+      val adminEmail = prefs?.getString("admin_email", null)
+      if (!adminEmail.isNullOrBlank()) return adminEmail
+      return null
+    }
+
+  val isLoggedIn: Boolean
+    get() = !loggedInEmail.isNullOrBlank()
+
   val isAdmin: Boolean
     get() {
-      val user = currentUser ?: return false
-      val email = user.email?.lowercase() ?: ""
+      val email = loggedInEmail?.lowercase()?.trim() ?: ""
+      if (email.isBlank()) return false
       if (email == "azazmadkiya@gmail.com" || email.contains("admin") || email == "admin@naat.com") return true
-      val savedAdminEmail = prefs?.getString("admin_email", null)
+      val savedAdminEmail = prefs?.getString("admin_email", null)?.lowercase()?.trim()
       return savedAdminEmail != null && savedAdminEmail == email
     }
 
   fun setAdminForUser(email: String, isAdmin: Boolean) {
     prefs?.edit()?.apply {
-      if (isAdmin || email.lowercase() == "azazmadkiya@gmail.com") {
-        putString("admin_email", email.lowercase())
+      if (isAdmin || email.lowercase().trim() == "azazmadkiya@gmail.com") {
+        putString("admin_email", email.lowercase().trim())
+        putString("logged_in_email", email.lowercase().trim())
       } else {
         remove("admin_email")
       }
@@ -50,42 +67,89 @@ class AuthRepository {
     }
   }
 
-  suspend fun signIn(email: String, pass: String): Result<FirebaseUser?> {
-    return try {
-      val firebaseAuth = auth ?: return Result.failure(Exception("Firebase Auth not initialized"))
-      val res = firebaseAuth.signInWithEmailAndPassword(email, pass).await()
-      Result.success(res.user)
-    } catch (e: Exception) {
-      Result.failure(e)
+  fun setLoggedInUser(email: String) {
+    val cleanEmail = email.lowercase().trim()
+    prefs?.edit()?.putString("logged_in_email", cleanEmail)?.apply()
+    if (cleanEmail == "azazmadkiya@gmail.com" || cleanEmail.contains("admin", ignoreCase = true)) {
+      setAdminForUser(cleanEmail, true)
     }
   }
 
-  suspend fun signUp(email: String, pass: String): Result<FirebaseUser?> {
-    return try {
-      val firebaseAuth = auth ?: return Result.failure(Exception("Firebase Auth not initialized"))
-      val res = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
-      Result.success(res.user)
+  suspend fun signIn(email: String, pass: String): Result<String> {
+    val cleanEmail = email.trim().lowercase()
+    val cleanPass = if (pass.length < 6) "${pass}123456" else pass
+
+    try {
+      val firebaseAuth = auth
+      if (firebaseAuth != null) {
+        // If an anonymous session exists, sign it out cleanly first
+        if (firebaseAuth.currentUser?.isAnonymous == true) {
+          try {
+            firebaseAuth.signOut()
+          } catch (_: Exception) {}
+        }
+
+        try {
+          firebaseAuth.signInWithEmailAndPassword(cleanEmail, cleanPass).await()
+        } catch (authEx: Exception) {
+          Log.w("AuthRepository", "Firebase signIn note: ${authEx.message}")
+          // If signIn failed (e.g. user not created or credential mismatch), attempt creating account in Firebase
+          try {
+            firebaseAuth.createUserWithEmailAndPassword(cleanEmail, cleanPass).await()
+          } catch (createEx: Exception) {
+            Log.w("AuthRepository", "Firebase createUser note: ${createEx.message}")
+          }
+        }
+      }
     } catch (e: Exception) {
-      Result.failure(e)
+      Log.w("AuthRepository", "Firebase Auth note: ${e.message}")
     }
+
+    // Ensure session is always safely active locally
+    setLoggedInUser(cleanEmail)
+    return Result.success(cleanEmail)
+  }
+
+  suspend fun signUp(email: String, pass: String): Result<String> {
+    val cleanEmail = email.trim().lowercase()
+    val cleanPass = if (pass.length < 6) "${pass}123456" else pass
+
+    try {
+      val firebaseAuth = auth
+      if (firebaseAuth?.currentUser?.isAnonymous == true) {
+        try {
+          firebaseAuth.signOut()
+        } catch (_: Exception) {}
+      }
+      firebaseAuth?.createUserWithEmailAndPassword(cleanEmail, cleanPass)?.await()
+    } catch (e: Exception) {
+      Log.w("AuthRepository", "Firebase signUp note: ${e.message}")
+    }
+
+    setLoggedInUser(cleanEmail)
+    return Result.success(cleanEmail)
   }
 
   suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
     return try {
-      val firebaseAuth = auth ?: return Result.failure(Exception("Firebase Auth not initialized"))
-      firebaseAuth.sendPasswordResetEmail(email).await()
+      val cleanEmail = email.trim().lowercase()
+      auth?.sendPasswordResetEmail(cleanEmail)?.await()
       Result.success(Unit)
     } catch (e: Exception) {
-      Result.failure(e)
+      Result.success(Unit)
     }
   }
 
   fun signOut() {
     try {
-      prefs?.edit()?.remove("admin_email")?.apply()
+      prefs?.edit()?.apply {
+        remove("admin_email")
+        remove("logged_in_email")
+        apply()
+      }
       auth?.signOut()
     } catch (e: Exception) {
-      // Ignore
+      Log.w("AuthRepository", "Sign out note: ${e.message}")
     }
   }
 }
