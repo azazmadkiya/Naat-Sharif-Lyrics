@@ -195,6 +195,24 @@ class AuthRepository {
     return Result.success(cleanEmail)
   }
 
+  suspend fun updatePassword(newPass: String): Result<Unit> {
+    if (newPass.length < 6) {
+      return Result.failure(Exception("Password must be at least 6 characters."))
+    }
+    return try {
+      val user = auth?.currentUser
+      if (user != null) {
+        user.updatePassword(newPass).await()
+        Result.success(Unit)
+      } else {
+        Result.failure(Exception("No user currently signed in. Please sign in again."))
+      }
+    } catch (e: Exception) {
+      Log.w("AuthRepository", "Update password notice: ${e.message}")
+      Result.failure(Exception(e.localizedMessage ?: "Failed to update password. Please re-login and try again."))
+    }
+  }
+
   suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
     val cleanEmail = email.trim().lowercase()
     if (cleanEmail.isBlank()) {

@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.viewmodel.NaatViewModel
 
@@ -32,6 +33,7 @@ fun SettingScreen(
 ) {
   val context = LocalContext.current
   var showLogoutDialog by remember { mutableStateOf(false) }
+  var showChangePasswordDialog by remember { mutableStateOf(false) }
   val currentUserItem = viewModel.getCurrentUserItem()
 
   Scaffold(
@@ -244,6 +246,17 @@ fun SettingScreen(
         }
       }
 
+      // Change Password Item (Self Password Change)
+      item {
+        SettingItem(
+          icon = Icons.Default.LockReset,
+          title = "Change Password",
+          subtitle = "Update your account password securely"
+        ) {
+          showChangePasswordDialog = true
+        }
+      }
+
       // Logout Row
       item {
         SettingItem(
@@ -327,6 +340,80 @@ fun SettingScreen(
         Spacer(modifier = Modifier.height(16.dp))
       }
     }
+  }
+
+  // Change Password Dialog (Self)
+  if (showChangePasswordDialog) {
+    var newPass by remember { mutableStateOf("") }
+    var confirmPass by remember { mutableStateOf("") }
+    var passError by remember { mutableStateOf<String?>(null) }
+    var isUpdating by remember { mutableStateOf(false) }
+
+    AlertDialog(
+      onDismissRequest = { showChangePasswordDialog = false },
+      title = { Text("Change Password", fontWeight = FontWeight.Bold) },
+      text = {
+        Column(
+          modifier = Modifier.fillMaxWidth(),
+          verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+          Text("Enter your new password below:", style = MaterialTheme.typography.bodyMedium)
+          OutlinedTextField(
+            value = newPass,
+            onValueChange = { newPass = it; passError = null },
+            label = { Text("New Password (min 6 chars)") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(8.dp)
+          )
+          OutlinedTextField(
+            value = confirmPass,
+            onValueChange = { confirmPass = it; passError = null },
+            label = { Text("Confirm New Password") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(8.dp)
+          )
+          if (passError != null) {
+            Text(text = passError ?: "", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+          }
+        }
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            if (newPass.length < 6) {
+              passError = "Password must be at least 6 characters."
+              return@Button
+            }
+            if (newPass != confirmPass) {
+              passError = "Passwords do not match."
+              return@Button
+            }
+            isUpdating = true
+            viewModel.changeMyPassword(newPass) { success, msg ->
+              isUpdating = false
+              showChangePasswordDialog = false
+              Toast.makeText(context, msg ?: (if (success) "Password updated successfully" else "Update failed"), Toast.LENGTH_SHORT).show()
+            }
+          },
+          enabled = !isUpdating
+        ) {
+          if (isUpdating) {
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+          } else {
+            Text("Update Password")
+          }
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showChangePasswordDialog = false }) {
+          Text("Cancel")
+        }
+      }
+    )
   }
 
   // Logout Dialog

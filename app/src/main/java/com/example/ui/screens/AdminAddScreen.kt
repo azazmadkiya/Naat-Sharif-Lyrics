@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +35,7 @@ fun AdminAddScreen(
   onBack: () -> Unit
 ) {
   val currentUserItem = viewModel.getCurrentUserItem()
+  val context = LocalContext.current
   val isOnlyAddUser = currentUserItem.isOnlyAddRole()
   // Tabs: 0: Naats, 1: Categories, 2: Add/Edit Naat, 3: Users & Rights
   var selectedTab by remember { mutableStateOf(if (isOnlyAddUser) 2 else 0) }
@@ -687,6 +690,13 @@ fun AdminAddScreen(
 
                     if (canManageUsers && !isOwner) {
                       Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = {
+                          viewModel.adminResetUserPassword(user.email) { success, msg ->
+                            Toast.makeText(context, msg ?: "Password reset instructions sent", Toast.LENGTH_SHORT).show()
+                          }
+                        }) {
+                          Icon(Icons.Default.VpnKey, contentDescription = "Reset Password", tint = MaterialTheme.colorScheme.secondary)
+                        }
                         IconButton(onClick = {
                           editingUserId = user.id
                           userName = user.name

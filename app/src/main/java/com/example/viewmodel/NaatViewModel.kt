@@ -428,6 +428,33 @@ class NaatViewModel : ViewModel() {
     }
   }
 
+  fun changeMyPassword(newPass: String, onResult: (Boolean, String?) -> Unit) {
+    viewModelScope.launch {
+      val result = authRepo.updatePassword(newPass)
+      if (result.isSuccess) {
+        onResult(true, "Password updated successfully!")
+      } else {
+        val err = result.exceptionOrNull()?.message ?: "Failed to update password"
+        onResult(false, err)
+      }
+    }
+  }
+
+  fun adminResetUserPassword(email: String, onResult: (Boolean, String?) -> Unit) {
+    viewModelScope.launch {
+      if (email.isBlank()) {
+        onResult(false, "Invalid user email")
+        return@launch
+      }
+      val result = authRepo.sendPasswordResetEmail(email)
+      if (result.isSuccess) {
+        onResult(true, "Password reset instructions sent to $email")
+      } else {
+        onResult(false, "Failed to send password reset email to $email")
+      }
+    }
+  }
+
   fun makeAdminForTest() {
     val email = loggedInEmail ?: "azazmadkiya@gmail.com"
     authRepo.setAdminForUser(email, true)
