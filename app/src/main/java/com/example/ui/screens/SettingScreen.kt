@@ -27,14 +27,12 @@ fun SettingScreen(
   viewModel: NaatViewModel,
   onNavigateAdmin: () -> Unit,
   onNavigatePrivacy: () -> Unit,
-  onNavigateLogin: () -> Unit,
   onLogout: () -> Unit,
   onBack: () -> Unit
 ) {
   val context = LocalContext.current
   var showLogoutDialog by remember { mutableStateOf(false) }
   val currentUserItem = viewModel.getCurrentUserItem()
-  val isUserLoggedIn = viewModel.isLoggedIn || viewModel.isAdmin
 
   Scaffold(
     topBar = {
@@ -61,13 +59,13 @@ fun SettingScreen(
         .padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-      // Top Account Status Header
+      // Top Logged-in Account Header Card
       item {
         Card(
           modifier = Modifier.fillMaxWidth(),
           shape = RoundedCornerShape(16.dp),
           colors = CardDefaults.cardColors(
-            containerColor = if (isUserLoggedIn) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.primaryContainer
           ),
           elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
@@ -79,12 +77,12 @@ fun SettingScreen(
           ) {
             Surface(
               shape = RoundedCornerShape(50),
-              color = if (isUserLoggedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+              color = MaterialTheme.colorScheme.primary,
               modifier = Modifier.size(48.dp)
             ) {
               Box(contentAlignment = Alignment.Center) {
                 Icon(
-                  imageVector = if (isUserLoggedIn) Icons.Default.Person else Icons.Default.AccountCircle,
+                  imageVector = Icons.Default.Person,
                   contentDescription = null,
                   tint = Color.White,
                   modifier = Modifier.size(28.dp)
@@ -95,56 +93,33 @@ fun SettingScreen(
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-              if (isUserLoggedIn) {
+              Text(
+                text = viewModel.loggedInEmail ?: "Authenticated User",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+              )
+              Spacer(modifier = Modifier.height(2.dp))
+              Surface(
+                shape = RoundedCornerShape(4.dp),
+                color = MaterialTheme.colorScheme.primary
+              ) {
                 Text(
-                  text = viewModel.loggedInEmail ?: "Admin User",
-                  style = MaterialTheme.typography.titleMedium,
+                  text = currentUserItem.getRoleDisplayName(),
+                  style = MaterialTheme.typography.labelSmall,
+                  color = Color.White,
                   fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Surface(
-                  shape = RoundedCornerShape(4.dp),
-                  color = MaterialTheme.colorScheme.primary
-                ) {
-                  Text(
-                    text = currentUserItem.getRoleDisplayName(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                  )
-                }
-              } else {
-                Text(
-                  text = "Guest User",
-                  style = MaterialTheme.typography.titleMedium,
-                  fontWeight = FontWeight.Bold,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                  text = "Login to access Admin rights or add Naats",
-                  style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                  modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 )
               }
             }
 
-            if (isUserLoggedIn) {
-              IconButton(onClick = { showLogoutDialog = true }) {
-                Icon(
-                  Icons.Default.Logout,
-                  contentDescription = "Logout",
-                  tint = MaterialTheme.colorScheme.error
-                )
-              }
-            } else {
-              Button(
-                onClick = onNavigateLogin,
-                shape = RoundedCornerShape(8.dp)
-              ) {
-                Text("Login")
-              }
+            IconButton(onClick = { showLogoutDialog = true }) {
+              Icon(
+                Icons.Default.Logout,
+                contentDescription = "Logout",
+                tint = MaterialTheme.colorScheme.error
+              )
             }
           }
         }
@@ -263,26 +238,14 @@ fun SettingScreen(
         }
       }
 
-      // Explicit Login / Logout Row
-      if (isUserLoggedIn) {
-        item {
-          SettingItem(
-            icon = Icons.Default.Logout,
-            title = "Logout",
-            subtitle = "Sign out from ${viewModel.loggedInEmail ?: "your account"}"
-          ) {
-            showLogoutDialog = true
-          }
-        }
-      } else {
-        item {
-          SettingItem(
-            icon = Icons.Default.Login,
-            title = "Login / Sign In",
-            subtitle = "Sign in with your email address for Admin or Editor access"
-          ) {
-            onNavigateLogin()
-          }
+      // Logout Row
+      item {
+        SettingItem(
+          icon = Icons.Default.Logout,
+          title = "Logout",
+          subtitle = "Sign out from ${viewModel.loggedInEmail ?: "your account"}"
+        ) {
+          showLogoutDialog = true
         }
       }
 
@@ -371,7 +334,7 @@ fun SettingScreen(
     AlertDialog(
       onDismissRequest = { showLogoutDialog = false },
       title = { Text("Confirm Logout") },
-      text = { Text("Are you sure you want to log out of your account?") },
+      text = { Text("Are you sure you want to log out of your account? You will need to log in again to access the app.") },
       confirmButton = {
         Button(
           onClick = {

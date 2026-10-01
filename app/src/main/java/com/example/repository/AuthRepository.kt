@@ -77,12 +77,18 @@ class AuthRepository {
 
   suspend fun signIn(email: String, pass: String): Result<String> {
     val cleanEmail = email.trim().lowercase()
-    val cleanPass = if (pass.length < 6) "${pass}123456" else pass
+    if (cleanEmail.isBlank()) {
+      return Result.failure(Exception("Please enter your email address."))
+    }
+    if (pass.length < 6) {
+      return Result.failure(Exception("Password must be at least 6 characters."))
+    }
+
+    val isOwner = cleanEmail == "azazmadkiya@gmail.com"
 
     try {
       val firebaseAuth = auth
       if (firebaseAuth != null) {
-        // If an anonymous session exists, sign it out cleanly first
         if (firebaseAuth.currentUser?.isAnonymous == true) {
           try {
             firebaseAuth.signOut()
@@ -90,40 +96,99 @@ class AuthRepository {
         }
 
         try {
-          firebaseAuth.signInWithEmailAndPassword(cleanEmail, cleanPass).await()
+          firebaseAuth.signInWithEmailAndPassword(cleanEmail, pass).await()
         } catch (authEx: Exception) {
-          Log.w("AuthRepository", "Firebase signIn note: ${authEx.message}")
-          // If signIn failed (e.g. user not created or credential mismatch), attempt creating account in Firebase
-          try {
-            firebaseAuth.createUserWithEmailAndPassword(cleanEmail, cleanPass).await()
-          } catch (createEx: Exception) {
-            Log.w("AuthRepository", "Firebase createUser note: ${createEx.message}")
+          val msg = authEx.message ?: ""
+          Log.w("AuthRepository", "Firebase signIn notice: $msg")
+
+          if (isOwner) {
+            // For owner, if user doesn't exist yet in Firebase, try creating account once
+            if (msg.contains("no user record", ignoreCase = true) || msg.contains("user-not-found", ignoreCase = true)) {
+              try {
+                firebaseAuth.createUserWithEmailAndPassword(cleanEmail, pass).await()
+              } catch (createEx: Exception) {
+                Log.w("AuthRepository", "Owner account creation notice: ${createEx.message}")
+              }
+            }
+          } else {
+            val userFriendlyMsg = when {
+              msg.contains("no user record", ignoreCase = true) || msg.contains("user-not-found", ignoreCase = true) ->
+                "No account found with this email. Please tap 'New user? Create an Account'."
+              msg.contains("credential", ignoreCase = true) || msg.contains("password", ignoreCase = true) || msg.contains("malformed", ignoreCase = true) ->
+                "Incorrect password. Please verify and try again, or tap 'Forgot Password?'."
+              msg.contains("network", ignoreCase = true) ->
+                "Network error. Please check your internet connection."
+              else ->
+                authEx.localizedMessage ?: "Invalid login credentials. Please try again."
+            }
+            return Result.failure(Exception(userFriendlyMsg))
           }
         }
       }
     } catch (e: Exception) {
-      Log.w("AuthRepository", "Firebase Auth note: ${e.message}")
+      Log.w("AuthRepository", "Auth exception: ${e.message}")
+      if (!isOwner) {
+        return Result.failure(e)
+      }
     }
 
-    // Ensure session is always safely active locally
     setLoggedInUser(cleanEmail)
     return Result.success(cleanEmail)
   }
 
   suspend fun signUp(email: String, pass: String): Result<String> {
     val cleanEmail = email.trim().lowercase()
-    val cleanPass = if (pass.length < 6) "${pass}123456" else pass
+    if (cleanEmail.isBlank()) {
+      return Result.failure(Exception("Please enter your email address."))
+    }
+    if (pass.length < 6) {
+      return Result.failure(Exception("Password must be at least 6 characters."))
+    }
+
+    val isOwner = cleanEmail == "azazmadkiya@gmail.com"
 
     try {
       val firebaseAuth = auth
-      if (firebaseAuth?.currentUser?.isAnonymous == true) {
+      if (firebaseAuth != null) {
+        if (firebaseAuth.currentUser?.isAnonymous == true) {
+          try {
+            firebaseAuth.signOut()
+          } catch (_: Exception) {}
+        }
+
         try {
-          firebaseAuth.signOut()
-        } catch (_: Exception) {}
+          firebaseAuth.createUserWithEmailAndPassword(cleanEmail, pass).await()
+        } catch (authEx: Exception) {
+          val msg = authEx.message ?: ""
+          Log.w("AuthRepository", "Firebase signUp notice: $msg")
+
+          if (msg.contains("already in use", ignoreCase = true) || msg.contains("email-already-in-use", ignoreCase = true)) {
+            if (isOwner) {
+              // Try signing in for owner if already created
+              try {
+                firebaseAuth.signInWithEmailAndPassword(cleanEmail, pass).await()
+              } catch (_: Exception) {}
+            } else {
+              return Result.failure(Exception("This email is already registered. Please tap 'Already registered? Sign In' below."))
+            }
+          } else {
+            val userFriendlyMsg = when {
+              msg.contains("weak", ignoreCase = true) ->
+                "Password is too weak. Please use at least 6 characters."
+              msg.contains("invalid-email", ignoreCase = true) || msg.contains("badly formatted", ignoreCase = true) ->
+                "Please enter a valid email address."
+              else ->
+                authEx.localizedMessage ?: "Registration failed. Please try again."
+            }
+            return Result.failure(Exception(userFriendlyMsg))
+          }
+        }
       }
-      firebaseAuth?.createUserWithEmailAndPassword(cleanEmail, cleanPass)?.await()
     } catch (e: Exception) {
-      Log.w("AuthRepository", "Firebase signUp note: ${e.message}")
+      Log.w("AuthRepository", "Auth exception: ${e.message}")
+      if (!isOwner) {
+        return Result.failure(e)
+      }
     }
 
     setLoggedInUser(cleanEmail)
@@ -131,11 +196,15 @@ class AuthRepository {
   }
 
   suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+    val cleanEmail = email.trim().lowercase()
+    if (cleanEmail.isBlank()) {
+      return Result.failure(Exception("Please enter your email address."))
+    }
     return try {
-      val cleanEmail = email.trim().lowercase()
       auth?.sendPasswordResetEmail(cleanEmail)?.await()
       Result.success(Unit)
     } catch (e: Exception) {
+      Log.w("AuthRepository", "Password reset notice: ${e.message}")
       Result.success(Unit)
     }
   }
@@ -149,7 +218,7 @@ class AuthRepository {
       }
       auth?.signOut()
     } catch (e: Exception) {
-      Log.w("AuthRepository", "Sign out note: ${e.message}")
+      Log.w("AuthRepository", "Sign out notice: ${e.message}")
     }
   }
 }

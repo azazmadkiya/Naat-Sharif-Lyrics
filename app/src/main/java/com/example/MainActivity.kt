@@ -45,7 +45,8 @@ fun NaatNavHost(viewModel: NaatViewModel) {
     composable("splash") {
       SplashScreen(
         onTimeout = {
-          navController.navigate("home") {
+          val destination = if (viewModel.isLoggedIn) "home" else "auth"
+          navController.navigate(destination) {
             popUpTo("splash") { inclusive = true }
           }
         }
@@ -58,9 +59,6 @@ fun NaatNavHost(viewModel: NaatViewModel) {
           navController.navigate("home") {
             popUpTo("auth") { inclusive = true }
           }
-        },
-        onBack = {
-          navController.popBackStack()
         }
       )
     }
@@ -127,11 +125,10 @@ fun NaatNavHost(viewModel: NaatViewModel) {
         onNavigatePrivacy = {
           navController.navigate("privacy_policy")
         },
-        onNavigateLogin = {
-          navController.navigate("auth")
-        },
         onLogout = {
-          // Stay on settings screen with updated logged-out state
+          navController.navigate("auth") {
+            popUpTo(0) { inclusive = true }
+          }
         },
         onBack = { navController.popBackStack() }
       )

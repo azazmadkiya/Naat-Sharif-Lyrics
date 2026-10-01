@@ -5,17 +5,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.viewmodel.NaatViewModel
@@ -24,28 +28,28 @@ import com.example.viewmodel.NaatViewModel
 @Composable
 fun AuthScreen(
   viewModel: NaatViewModel,
-  onLoginSuccess: () -> Unit,
-  onBack: () -> Unit
+  onLoginSuccess: () -> Unit
 ) {
   var email by remember { mutableStateOf("") }
   var password by remember { mutableStateOf("") }
+  var isPasswordVisible by remember { mutableStateOf(false) }
   var isSignUp by remember { mutableStateOf(false) }
   var isLoading by remember { mutableStateOf(false) }
   var resetMessage by remember { mutableStateOf<String?>(null) }
+  var localError by remember { mutableStateOf<String?>(null) }
 
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text(if (isSignUp) "Create Account" else "Admin & User Login", fontWeight = FontWeight.Bold) },
-        navigationIcon = {
-          IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-          }
+        title = {
+          Text(
+            if (isSignUp) "Create Account" else "Sign In",
+            fontWeight = FontWeight.Bold
+          )
         },
         colors = TopAppBarDefaults.topAppBarColors(
           containerColor = MaterialTheme.colorScheme.primary,
-          titleContentColor = Color.White,
-          navigationIconContentColor = Color.White
+          titleContentColor = Color.White
         )
       )
     }
@@ -77,7 +81,7 @@ fun AuthScreen(
       Spacer(modifier = Modifier.height(16.dp))
 
       Text(
-        text = if (isSignUp) "Create Account" else "Sign In",
+        text = if (isSignUp) "Create Account" else "Welcome Back",
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary
@@ -86,7 +90,7 @@ fun AuthScreen(
       Spacer(modifier = Modifier.height(6.dp))
 
       Text(
-        text = "Login to manage Naat Sharif, categories & users",
+        text = "Sign in or register to access Naat Sharif & Kalam collection",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
       )
@@ -97,9 +101,11 @@ fun AuthScreen(
         value = email,
         onValueChange = { 
           email = it
+          localError = null
           viewModel.authError = null
         },
         label = { Text("Email Address") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         singleLine = true
@@ -111,10 +117,20 @@ fun AuthScreen(
         value = password,
         onValueChange = { 
           password = it 
+          localError = null
           viewModel.authError = null
         },
         label = { Text("Password (min 6 characters)") },
-        visualTransformation = PasswordVisualTransformation(),
+        visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        trailingIcon = {
+          IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+            Icon(
+              imageVector = if (isPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+              contentDescription = if (isPasswordVisible) "Hide password" else "Show password"
+            )
+          }
+        },
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         singleLine = true
@@ -125,6 +141,10 @@ fun AuthScreen(
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
           TextButton(
             onClick = {
+              if (email.isBlank()) {
+                localError = "Please enter your email address to reset password."
+                return@TextButton
+              }
               viewModel.resetPassword(email) { success, msg ->
                 resetMessage = msg
               }
@@ -137,40 +157,67 @@ fun AuthScreen(
 
       Spacer(modifier = Modifier.height(16.dp))
 
-      if (viewModel.authError != null) {
-        Text(
-          text = viewModel.authError ?: "",
-          color = MaterialTheme.colorScheme.error,
-          style = MaterialTheme.typography.bodySmall
-        )
+      val displayError = localError ?: viewModel.authError
+      if (displayError != null) {
+        Surface(
+          color = MaterialTheme.colorScheme.errorContainer,
+          shape = RoundedCornerShape(8.dp),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Text(
+            text = displayError,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(12.dp)
+          )
+        }
         Spacer(modifier = Modifier.height(12.dp))
       }
 
       if (resetMessage != null) {
-        Text(
-          text = resetMessage ?: "",
-          color = MaterialTheme.colorScheme.primary,
-          style = MaterialTheme.typography.bodySmall
-        )
+        Surface(
+          color = MaterialTheme.colorScheme.primaryContainer,
+          shape = RoundedCornerShape(8.dp),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Text(
+            text = resetMessage ?: "",
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(12.dp)
+          )
+        }
         Spacer(modifier = Modifier.height(12.dp))
       }
 
       Button(
         onClick = {
-          if (email.isNotBlank() && password.isNotBlank()) {
-            isLoading = true
-            val effectivePassword = if (password.length < 6) "${password}123456" else password
-            val isAdminRole = email.contains("admin", ignoreCase = true) || email.lowercase().trim() == "azazmadkiya@gmail.com"
-            if (isSignUp) {
-              viewModel.signUp(email, effectivePassword, isAdminRole) { success ->
-                isLoading = false
-                if (success) onLoginSuccess()
-              }
-            } else {
-              viewModel.signIn(email, effectivePassword, isAdminRole) { success ->
-                isLoading = false
-                if (success) onLoginSuccess()
-              }
+          val cleanEmail = email.trim()
+          val cleanPass = password.trim()
+
+          if (cleanEmail.isBlank()) {
+            localError = "Please enter your email address."
+            return@Button
+          }
+          if (cleanPass.length < 6) {
+            localError = "Password must be at least 6 characters long."
+            return@Button
+          }
+
+          isLoading = true
+          localError = null
+          viewModel.authError = null
+          val isAdminRole = cleanEmail.contains("admin", ignoreCase = true) || cleanEmail.lowercase() == "azazmadkiya@gmail.com"
+
+          if (isSignUp) {
+            viewModel.signUp(cleanEmail, cleanPass, isAdminRole) { success ->
+              isLoading = false
+              if (success) onLoginSuccess()
+            }
+          } else {
+            viewModel.signIn(cleanEmail, cleanPass, isAdminRole) { success ->
+              isLoading = false
+              if (success) onLoginSuccess()
             }
           }
         },
@@ -182,7 +229,7 @@ fun AuthScreen(
         if (isLoading) {
           CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
         } else {
-          Text(if (isSignUp) "Sign Up" else "Login", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+          Text(if (isSignUp) "Sign Up" else "Sign In", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
       }
 
@@ -191,9 +238,10 @@ fun AuthScreen(
       TextButton(onClick = {
         isSignUp = !isSignUp
         resetMessage = null
+        localError = null
         viewModel.authError = null
       }) {
-        Text(if (isSignUp) "Already have an account? Login" else "Don't have an account? Sign Up")
+        Text(if (isSignUp) "Already registered? Sign In" else "New user? Create an Account")
       }
     }
   }
