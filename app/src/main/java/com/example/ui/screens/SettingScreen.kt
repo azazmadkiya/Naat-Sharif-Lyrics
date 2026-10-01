@@ -56,8 +56,9 @@ fun SettingScreen(
         .padding(16.dp),
       verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-      // Admin Section if logged in as Admin
-      if (viewModel.isAdmin) {
+      // Admin Section if logged in as Admin / Editor / Content Manager
+      val currentUserItem = viewModel.getCurrentUserItem()
+      if (viewModel.isAdmin || currentUserItem.isAdminRole() || currentUserItem.isAddNaatRole()) {
         item {
           Card(
             modifier = Modifier
@@ -82,9 +83,9 @@ fun SettingScreen(
                   color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                  text = "Add new Naat Sharif & Kalam Sharif",
+                  text = "Role: ${currentUserItem.getRoleDisplayName()} • Manage Naats, Categories & Rights",
                   style = MaterialTheme.typography.bodySmall,
-                  color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                  color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 )
               }
               Icon(Icons.Default.ChevronRight, contentDescription = null)
@@ -182,6 +183,84 @@ fun SettingScreen(
             onLogout()
           }
         }
+      }
+
+      // Footer Credit: Developed By Azazmadkiya
+      item {
+        Spacer(modifier = Modifier.height(16.dp))
+        Card(
+          modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+              try {
+                val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                  data = Uri.parse("mailto:azazmadkiya@gmail.com")
+                  putExtra(Intent.EXTRA_SUBJECT, "Naat Sharif App Inquiry")
+                }
+                context.startActivity(emailIntent)
+              } catch (_: Exception) {}
+            },
+          shape = RoundedCornerShape(16.dp),
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+        ) {
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+          ) {
+            Surface(
+              shape = RoundedCornerShape(50),
+              color = MaterialTheme.colorScheme.primary,
+              modifier = Modifier.size(44.dp)
+            ) {
+              Box(contentAlignment = Alignment.Center) {
+                Icon(
+                  imageVector = Icons.Default.Code,
+                  contentDescription = null,
+                  tint = Color.White,
+                  modifier = Modifier.size(24.dp)
+                )
+              }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text(
+                text = "Developed By",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+              )
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(
+                text = "Azazmadkiya",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+              )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+              text = "azazmadkiya@gmail.com",
+              style = MaterialTheme.typography.bodySmall,
+              color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = MaterialTheme.colorScheme.surface,
+              modifier = Modifier.padding(top = 2.dp)
+            ) {
+              Text(
+                text = "Naat Sharif & Kalam Sharif App v1.0",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+              )
+            }
+          }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
       }
     }
   }

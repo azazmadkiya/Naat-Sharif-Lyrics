@@ -53,3 +53,26 @@ data class CategoryItem(
     }
   }
 }
+
+data class AppUserItem(
+  var id: String = "",
+  var email: String = "",
+  var name: String = "",
+  var role: String = "ADMIN", // "ADMIN", "ADD_NAAT", "VIEWER"
+  var allowedCategories: List<String> = emptyList(), // e.g. ["hamd", "naat"]
+  var createdAt: Long = System.currentTimeMillis(),
+  var isActive: Boolean = true
+) {
+  fun isSuperAdmin(): Boolean = email.lowercase().trim() == "azazmadkiya@gmail.com"
+  fun isAdminRole(): Boolean = isSuperAdmin() || role.equals("ADMIN", ignoreCase = true)
+  fun isAddNaatRole(): Boolean = role.equals("ADD_NAAT", ignoreCase = true)
+  fun isViewerRole(): Boolean = role.equals("VIEWER", ignoreCase = true)
+
+  fun getRoleDisplayName(): String = when {
+    isSuperAdmin() -> "Super Admin (Full)"
+    isAdminRole() -> "Admin (Full Rights)"
+    isAddNaatRole() -> "Editor (Add Naats)"
+    isViewerRole() -> "Viewer (Only View)"
+    else -> role
+  }
+}

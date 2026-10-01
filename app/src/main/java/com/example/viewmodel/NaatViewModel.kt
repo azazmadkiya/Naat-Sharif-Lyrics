@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.model.AppUserItem
 import com.example.model.CategoryItem
 import com.example.model.NaatItem
 import com.example.model.toNaatItem
@@ -22,6 +23,9 @@ class NaatViewModel : ViewModel() {
   private val authRepo = AuthRepository()
 
   var categories by mutableStateOf<List<CategoryItem>>(naatRepo.defaultCategories)
+    private set
+
+  var users by mutableStateOf<List<AppUserItem>>(naatRepo.defaultUsers)
     private set
 
   private val _naats = MutableStateFlow<List<NaatItem>>(emptyList())
@@ -60,6 +64,9 @@ class NaatViewModel : ViewModel() {
     naatRepo.listenToCategories { list ->
       categories = list
     }
+    naatRepo.listenToUsers { list ->
+      users = list
+    }
   }
 
   fun refreshData() {
@@ -69,8 +76,10 @@ class NaatViewModel : ViewModel() {
       try {
         val fetchedNaats = naatRepo.getNaats()
         val fetchedCategories = naatRepo.getCategories()
+        val fetchedUsers = naatRepo.getUsers()
         _naats.value = fetchedNaats.toList()
         categories = fetchedCategories
+        users = fetchedUsers
         isConnected = true
         errorMessage = null
       } catch (e: Exception) {
@@ -82,6 +91,128 @@ class NaatViewModel : ViewModel() {
       }
     }
   }
+
+  // ==================== User Rights & RBAC Helpers ====================
+
+  fun getCurrentUserItem(): AppUserItem {
+    val email = currentUser?.email?.lowercase()?.trim() ?: ""
+    if (email == "azazmadkiya@gmail.com") {
+      return AppUserItem(
+        id = "admin_owner",
+        email = "azazmadkiya@gmail.com",
+        name = "Azaz Madkiya (Owner)",
+        role = "ADMIN",
+        allowedCategories = emptyList(),
+        isActive = true
+      )
+    }
+    val matched = users.find { it.email.equals(email, ignoreCase = true) }
+    if (matched != null) return matched
+
+    // Fallback if marked as admin in local preferences
+    return if (isAdmin) {
+      AppUserItem(
+        id = "admin_local",
+        email = email.ifBlank { "admin" },
+        name = "Admin User",
+        role = "ADMIN",
+        allowedCategories = emptyList(),
+        isActive = true
+      )
+    } else {
+      AppUserItem(
+        id = "viewer_local",
+        email = email.ifBlank { "guest" },
+        name = "App User",
+        role = "VIEWER",
+        allowedCategories = emptyList(),
+        isActive = true
+      )
+    }
+  }
+
+  fun canManageUsers(): Boolean {
+    val user = getCurrentUserItem()
+    return user.isSuperAdmin() || user.isAdminRole()
+  }
+
+  fun canManageCategories(): Boolean {
+    val user = getCurrentUserItem()
+    return user.isSuperAdmin() || user.isAdminRole()
+  }
+
+  fun canAddNaat(categoryId: String): Boolean {
+    val user = getCurrentUserItem()
+    if (user.isSuperAdmin() || user.isAdminRole()) return true
+    if (user.isAddNaatRole()) {
+      return user.allowedCategories.isEmpty() || user.allowedCategories.any { it.equals(categoryId, ignoreCase = true) }
+    }
+    return false
+  }
+
+  fun canEditNaat(categoryId: String): Boolean {
+    return canAddNaat(categoryId)
+  }
+
+  fun canDeleteNaat(): Boolean {
+    val user = getCurrentUserItem()
+    return user.isSuperAdmin() || user.isAdminRole()
+  }
+
+  fun isViewOnly(): Boolean {
+    val user = getCurrentUserItem()
+    return user.isViewerRole()
+  }
+
+  fun addUser(name: String, email: String, role: String, allowedCategories: List<String>, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+      val newUser = AppUserItem(
+        id = "user_${System.currentTimeMillis()}",
+        name = name.trim(),
+        email = email.trim().lowercase(),
+        role = role,
+        allowedCategories = allowedCategories,
+        createdAt = System.currentTimeMillis(),
+        isActive = true
+      )
+      val success = naatRepo.addUser(newUser)
+      if (success) {
+        users = naatRepo.getUsers()
+      }
+      onComplete(success)
+    }
+  }
+
+  fun updateUser(id: String, name: String, email: String, role: String, allowedCategories: List<String>, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+      val updatedUser = AppUserItem(
+        id = id,
+        name = name.trim(),
+        email = email.trim().lowercase(),
+        role = role,
+        allowedCategories = allowedCategories,
+        createdAt = System.currentTimeMillis(),
+        isActive = true
+      )
+      val success = naatRepo.updateUser(updatedUser)
+      if (success) {
+        users = naatRepo.getUsers()
+      }
+      onComplete(success)
+    }
+  }
+
+  fun deleteUser(id: String, onComplete: (Boolean) -> Unit) {
+    viewModelScope.launch {
+      val success = naatRepo.deleteUser(id)
+      if (success) {
+        users = naatRepo.getUsers()
+      }
+      onComplete(success)
+    }
+  }
+
+  // ==================== Category Operations ====================
 
   fun loadCategories() {
     refreshData()
@@ -135,6 +266,8 @@ class NaatViewModel : ViewModel() {
     }
   }
 
+  // ==================== Naat Operations ====================
+
   fun loadNaats() {
     viewModelScope.launch {
       _naats.value = naatRepo.getNaats().toList()
@@ -144,11 +277,11 @@ class NaatViewModel : ViewModel() {
   fun toggleFavorite(naat: NaatItem) {
     viewModelScope.launch {
       val updatedFav = !naat.isFavorite
+      _naats.value = _naats.value.map {
+        if (it.id == naat.id) it.copy(isFavorite = updatedFav) else it
+      }
       val success = naatRepo.updateFavorite(naat.id, updatedFav)
       if (success) {
-        _naats.value = _naats.value.map {
-          if (it.id == naat.id) it.copy(isFavorite = updatedFav) else it
-        }
         if (selectedNaat?.id == naat.id) {
           selectedNaat = selectedNaat?.copy(isFavorite = updatedFav)
         }
@@ -204,6 +337,8 @@ class NaatViewModel : ViewModel() {
       onComplete(success)
     }
   }
+
+  // ==================== Authentication ====================
 
   fun signIn(email: String, pass: String, isAdminRole: Boolean, onResult: (Boolean) -> Unit) {
     viewModelScope.launch {
@@ -266,7 +401,6 @@ class NaatViewModel : ViewModel() {
     }
   }
 
-  // Helper for quick admin login override for evaluation
   fun makeAdminForTest() {
     val email = currentUser?.email ?: "testadmin@naat.com"
     authRepo.setAdminForUser(email, true)

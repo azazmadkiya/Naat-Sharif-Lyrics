@@ -40,9 +40,17 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NaatNavHost(viewModel: NaatViewModel) {
   val navController = rememberNavController()
-  val startDestination = if (viewModel.currentUser != null || viewModel.isAdmin) "home" else "auth"
 
-  NavHost(navController = navController, startDestination = startDestination) {
+  NavHost(navController = navController, startDestination = "splash") {
+    composable("splash") {
+      SplashScreen(
+        onTimeout = {
+          navController.navigate("home") {
+            popUpTo("splash") { inclusive = true }
+          }
+        }
+      )
+    }
     composable("auth") {
       AuthScreen(viewModel = viewModel) {
         navController.navigate("home") {

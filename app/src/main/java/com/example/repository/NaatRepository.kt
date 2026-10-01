@@ -1,6 +1,7 @@
 package com.example.repository
 
 import android.util.Log
+import com.example.model.AppUserItem
 import com.example.model.CategoryItem
 import com.example.model.Naat
 import com.example.model.NaatItem
@@ -19,6 +20,7 @@ class NaatRepository {
         null
     }
     private val naatsCollection = firestore?.collection("naats")
+    private val usersCollection = firestore?.collection("app_users")
 
     val defaultCategories = listOf(
         CategoryItem("hamd", "हम्द शरीफ", "Hamd Sharif", "ic_hamd", 0, "", 0),
@@ -31,9 +33,22 @@ class NaatRepository {
         CategoryItem("raza", "कलामे रज़ा", "Kalame Raza", "ic_raza", 0, "", 7)
     )
 
+    val defaultUsers = listOf(
+        AppUserItem(
+            id = "admin_owner",
+            email = "azazmadkiya@gmail.com",
+            name = "Azaz Madkiya (Owner)",
+            role = "ADMIN",
+            allowedCategories = emptyList(),
+            createdAt = System.currentTimeMillis(),
+            isActive = true
+        )
+    )
+
     companion object {
         private val cachedNaats = mutableListOf<NaatItem>()
         private val cachedCategories = mutableListOf<CategoryItem>()
+        private val cachedUsers = mutableListOf<AppUserItem>()
     }
 
     private fun mapDocToNaat(doc: com.google.firebase.firestore.DocumentSnapshot): Naat? {
@@ -257,6 +272,120 @@ class NaatRepository {
         }
         return true
     }
+
+    // ==================== User Management & RBAC Rights ====================
+
+    fun listenToUsers(onUpdate: (List<AppUserItem>) -> Unit) {
+        if (cachedUsers.isEmpty()) {
+            cachedUsers.addAll(defaultUsers)
+        }
+        onUpdate(cachedUsers)
+        try {
+            usersCollection?.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w("NaatRepository", "Users listen notice: ${error.message}")
+                    onUpdate(cachedUsers)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val list = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(AppUserItem::class.java)?.apply { this.id = doc.id }
+                    }
+                    cachedUsers.clear()
+                    if (list.isNotEmpty()) {
+                        // Ensure owner is always present
+                        val hasOwner = list.any { it.email.equals("azazmadkiya@gmail.com", ignoreCase = true) }
+                        if (!hasOwner) {
+                            cachedUsers.addAll(defaultUsers)
+                        }
+                        cachedUsers.addAll(list.filterNot { it.email.equals("azazmadkiya@gmail.com", ignoreCase = true) })
+                    } else {
+                        cachedUsers.addAll(defaultUsers)
+                    }
+                    onUpdate(cachedUsers)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("NaatRepository", "Users snapshot notice: ${e.message}")
+            onUpdate(cachedUsers)
+        }
+    }
+
+    suspend fun getUsers(): List<AppUserItem> {
+        try {
+            val db = firestore
+            if (db != null) {
+                val snapshot = db.collection("app_users").get().await()
+                val list = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(AppUserItem::class.java)?.apply { this.id = doc.id }
+                }
+                cachedUsers.clear()
+                if (list.isNotEmpty()) {
+                    val hasOwner = list.any { it.email.equals("azazmadkiya@gmail.com", ignoreCase = true) }
+                    if (!hasOwner) {
+                        cachedUsers.addAll(defaultUsers)
+                    }
+                    cachedUsers.addAll(list.filterNot { it.email.equals("azazmadkiya@gmail.com", ignoreCase = true) })
+                } else {
+                    cachedUsers.addAll(defaultUsers)
+                    try {
+                        db.collection("app_users").document("admin_owner").set(defaultUsers.first()).await()
+                    } catch (_: Exception) {}
+                }
+                return cachedUsers
+            }
+        } catch (e: Exception) {
+            Log.w("NaatRepository", "Failed to fetch users from cloud: ${e.message}")
+        }
+        if (cachedUsers.isEmpty()) {
+            cachedUsers.addAll(defaultUsers)
+        }
+        return cachedUsers
+    }
+
+    suspend fun addUser(user: AppUserItem): Boolean {
+        val docId = if (user.id.isBlank()) "user_${System.currentTimeMillis()}" else user.id
+        val newUser = user.copy(id = docId, email = user.email.trim().lowercase())
+        if (!cachedUsers.any { it.email.equals(newUser.email, ignoreCase = true) }) {
+            cachedUsers.add(newUser)
+        }
+        try {
+            usersCollection?.document(docId)?.set(newUser)?.await()
+        } catch (e: Exception) {
+            Log.w("NaatRepository", "Add user notice: ${e.message}")
+        }
+        return true
+    }
+
+    suspend fun updateUser(user: AppUserItem): Boolean {
+        val index = cachedUsers.indexOfFirst { it.id == user.id || it.email.equals(user.email, ignoreCase = true) }
+        if (index >= 0) {
+            cachedUsers[index] = user
+        } else {
+            cachedUsers.add(user)
+        }
+        try {
+            val docId = if (user.id.isNotBlank()) user.id else "user_${System.currentTimeMillis()}"
+            usersCollection?.document(docId)?.set(user)?.await()
+        } catch (e: Exception) {
+            Log.w("NaatRepository", "Update user notice: ${e.message}")
+        }
+        return true
+    }
+
+    suspend fun deleteUser(id: String): Boolean {
+        cachedUsers.removeAll { it.id == id && !it.email.equals("azazmadkiya@gmail.com", ignoreCase = true) }
+        try {
+            if (id.isNotEmpty() && id != "admin_owner") {
+                usersCollection?.document(id)?.delete()?.await()
+            }
+        } catch (e: Exception) {
+            Log.w("NaatRepository", "Delete user notice: ${e.message}")
+        }
+        return true
+    }
+
+    // ==================== Naat CRUD ====================
 
     suspend fun getNaats(): List<NaatItem> {
         try {
