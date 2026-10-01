@@ -14,6 +14,7 @@ import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 class NaatViewModel : ViewModel() {
@@ -45,11 +46,17 @@ class NaatViewModel : ViewModel() {
     refreshData()
     viewModelScope.launch {
       try {
-        naatRepo.getNaatsRealtime().collect { list ->
-          _naats.value = list.map { it.toNaatItem() }
-        }
+        naatRepo.getNaatsRealtime()
+          .catch { e ->
+            android.util.Log.w("NaatViewModel", "Realtime collect note: ${e.message}")
+          }
+          .collect { list ->
+            if (list.isNotEmpty()) {
+              _naats.value = list.map { it.toNaatItem() }
+            }
+          }
       } catch (e: Exception) {
-        android.util.Log.e("NaatViewModel", "Realtime collect error: ${e.message}")
+        android.util.Log.w("NaatViewModel", "Realtime collect catch: ${e.message}")
       }
     }
     naatRepo.listenToCategories { list ->
