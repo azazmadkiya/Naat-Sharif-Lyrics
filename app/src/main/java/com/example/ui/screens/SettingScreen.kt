@@ -315,7 +315,7 @@ fun SettingScreen(
               modifier = Modifier.padding(top = 2.dp)
             ) {
               Text(
-                text = "Naat Sharif & Kalam Sharif App v1.0",
+                text = "Naat Sharif & Kalam Sharif App v1.1",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium,
