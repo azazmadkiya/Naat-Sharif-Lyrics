@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.model.CategoryItem
 import com.example.model.NaatItem
+import com.example.model.toNaatItem
 import com.example.repository.AuthRepository
 import com.example.repository.NaatRepository
 import com.google.firebase.auth.FirebaseUser
@@ -42,8 +43,14 @@ class NaatViewModel : ViewModel() {
 
   init {
     refreshData()
-    naatRepo.listenToNaats { list ->
-      _naats.value = list.toList()
+    viewModelScope.launch {
+      try {
+        naatRepo.getNaatsRealtime().collect { list ->
+          _naats.value = list.map { it.toNaatItem() }
+        }
+      } catch (e: Exception) {
+        android.util.Log.e("NaatViewModel", "Realtime collect error: ${e.message}")
+      }
     }
     naatRepo.listenToCategories { list ->
       categories = list
