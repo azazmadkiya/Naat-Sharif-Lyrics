@@ -27,7 +27,7 @@ fun SearchScreen(
   onBack: () -> Unit
 ) {
   var query by remember { mutableStateOf("") }
-  val allNaats = viewModel.naats.value
+  val allNaats by viewModel.naats.collectAsState()
   val searchResults = if (query.isBlank()) allNaats else allNaats.filter {
     it.title.contains(query, ignoreCase = true) || it.lyrics.contains(query, ignoreCase = true) || it.reciter.contains(query, ignoreCase = true)
   }

@@ -11,6 +11,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,7 +28,8 @@ fun FavoritesScreen(
   onNaatClick: (NaatItem) -> Unit,
   onBack: () -> Unit
 ) {
-  val favoriteNaats = viewModel.naats.value.filter { it.isFavorite }
+  val allNaats by viewModel.naats.collectAsState()
+  val favoriteNaats = allNaats.filter { it.isFavorite }
 
   Scaffold(
     topBar = {
