@@ -99,18 +99,20 @@ fun SettingScreen(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
               )
-              Spacer(modifier = Modifier.height(2.dp))
-              Surface(
-                shape = RoundedCornerShape(4.dp),
-                color = MaterialTheme.colorScheme.primary
-              ) {
-                Text(
-                  text = currentUserItem.getRoleDisplayName(),
-                  style = MaterialTheme.typography.labelSmall,
-                  color = Color.White,
-                  fontWeight = FontWeight.Bold,
-                  modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                )
+              if (viewModel.isAdmin || currentUserItem.isAdminRole() || currentUserItem.isAddNaatRole()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Surface(
+                  shape = RoundedCornerShape(4.dp),
+                  color = MaterialTheme.colorScheme.primary
+                ) {
+                  Text(
+                    text = currentUserItem.getRoleDisplayName(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                  )
+                }
               }
             }
 
@@ -302,20 +304,14 @@ fun SettingScreen(
                 color = MaterialTheme.colorScheme.primary
               )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-              text = "azazmadkiya@gmail.com",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Surface(
               shape = RoundedCornerShape(8.dp),
               color = MaterialTheme.colorScheme.surface,
               modifier = Modifier.padding(top = 2.dp)
             ) {
               Text(
-                text = "Naat Sharif & Kalam Sharif App v1.1",
+                text = "Naat Sharif & Kalam Sharif App v3.0",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium,
