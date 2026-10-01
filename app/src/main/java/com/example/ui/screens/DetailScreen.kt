@@ -36,8 +36,18 @@ fun DetailScreen(
   var selectedLanguage by remember { mutableStateOf("Hindi") }
 
   val displayText = when (selectedLanguage) {
-    "Gujarati" -> if (naat.gujaratiLyrics.isNotBlank()) naat.gujaratiLyrics else naat.lyrics
-    else -> naat.lyrics
+    "Gujarati" -> when {
+      naat.gujaratiLyrics.isNotBlank() -> naat.gujaratiLyrics
+      naat.lyrics.isNotBlank() && naat.lyrics != naat.hindiLyrics -> naat.lyrics
+      naat.hindiLyrics.isNotBlank() -> naat.hindiLyrics
+      else -> "ગુજરાતી લિરિક્સ ઉપલબ્ધ નથી."
+    }
+    else -> when {
+      naat.hindiLyrics.isNotBlank() -> naat.hindiLyrics
+      naat.lyrics.isNotBlank() -> naat.lyrics
+      naat.gujaratiLyrics.isNotBlank() -> naat.gujaratiLyrics
+      else -> "हिन्दी लिरिक्स उपलब्ध नहीं है।"
+    }
   }
 
   Scaffold(
@@ -134,7 +144,7 @@ fun DetailScreen(
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-          text = "Reciter: ${naat.reciter}",
+          text = "Reciter: ${naat.reciter.ifBlank { "Traditional" }}",
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -284,6 +284,9 @@ fun HomeScreen(
 
 @Composable
 fun CategoryCard(category: CategoryItem, onClick: () -> Unit) {
+  val title = category.getDisplayTitle()
+  val subtitle = category.getDisplaySubtitle()
+
   Card(
     modifier = Modifier
       .fillMaxWidth()
@@ -302,19 +305,21 @@ fun CategoryCard(category: CategoryItem, onClick: () -> Unit) {
     ) {
       Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-          text = category.title,
+          text = title,
           style = MaterialTheme.typography.titleMedium,
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onSurface,
           textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-          text = category.subtitle,
-          style = MaterialTheme.typography.bodySmall,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-          textAlign = TextAlign.Center
-        )
+        if (subtitle.isNotBlank()) {
+          Spacer(modifier = Modifier.height(4.dp))
+          Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+          )
+        }
       }
     }
   }

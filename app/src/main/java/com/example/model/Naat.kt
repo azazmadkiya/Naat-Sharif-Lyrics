@@ -19,14 +19,29 @@ data class Naat(
 )
 
 fun Naat.toNaatItem(): NaatItem {
+    val hLyrics = when {
+        this.hindiLyrics.isNotBlank() -> this.hindiLyrics
+        this.lyrics.isNotBlank() -> this.lyrics
+        else -> ""
+    }
+    val gLyrics = when {
+        this.gujaratiLyrics.isNotBlank() -> this.gujaratiLyrics
+        else -> ""
+    }
+    val genericLyrics = when {
+        this.lyrics.isNotBlank() -> this.lyrics
+        this.hindiLyrics.isNotBlank() -> this.hindiLyrics
+        this.gujaratiLyrics.isNotBlank() -> this.gujaratiLyrics
+        else -> ""
+    }
     return NaatItem(
         id = this.id,
         title = this.title,
         category = this.category,
         reciter = if (this.reciter.isBlank()) "Traditional" else this.reciter,
-        lyrics = this.lyrics,
-        hindiLyrics = this.hindiLyrics,
-        gujaratiLyrics = this.gujaratiLyrics,
+        lyrics = genericLyrics,
+        hindiLyrics = hLyrics,
+        gujaratiLyrics = gLyrics,
         arabicLyrics = this.arabicLyrics,
         isFavorite = this.isFavorite,
         addedBy = this.addedBy

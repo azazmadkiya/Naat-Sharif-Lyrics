@@ -36,9 +36,60 @@ class NaatRepository {
         private val cachedCategories = mutableListOf<CategoryItem>()
     }
 
+    private fun mapDocToNaat(doc: com.google.firebase.firestore.DocumentSnapshot): Naat? {
+        val naat = doc.toObject(Naat::class.java)?.apply { this.id = doc.id } ?: return null
+        val docHindi = doc.getString("hindiLyrics") 
+            ?: doc.getString("hindi_lyrics") 
+            ?: doc.getString("hindi") 
+            ?: ""
+        val docGujarati = doc.getString("gujaratiLyrics") 
+            ?: doc.getString("gujarati_lyrics") 
+            ?: doc.getString("gujarati") 
+            ?: ""
+        val docLyrics = doc.getString("lyrics") ?: ""
+
+        if (naat.hindiLyrics.isBlank()) {
+            naat.hindiLyrics = if (docHindi.isNotBlank()) docHindi else docLyrics
+        }
+        if (naat.gujaratiLyrics.isBlank()) {
+            naat.gujaratiLyrics = docGujarati
+        }
+        if (naat.lyrics.isBlank()) {
+            naat.lyrics = if (docLyrics.isNotBlank()) docLyrics else naat.hindiLyrics
+        }
+        return naat
+    }
+
+    private fun mapDocToCategory(doc: com.google.firebase.firestore.DocumentSnapshot): CategoryItem {
+        val obj = doc.toObject(CategoryItem::class.java)?.apply { this.id = doc.id }
+            ?: CategoryItem(id = doc.id)
+        val docTitle = doc.getString("title") 
+            ?: doc.getString("name") 
+            ?: doc.getString("category") 
+            ?: doc.getString("categoryTitle") 
+            ?: ""
+        val docSubtitle = doc.getString("subtitle") 
+            ?: doc.getString("subTitle") 
+            ?: doc.getString("desc") 
+            ?: ""
+
+        val finalTitle = if (obj.title.isNotBlank()) obj.title 
+            else if (docTitle.isNotBlank()) docTitle 
+            else obj.getDisplayTitle()
+            
+        val finalSubtitle = if (obj.subtitle.isNotBlank()) obj.subtitle 
+            else if (docSubtitle.isNotBlank()) docSubtitle 
+            else obj.getDisplaySubtitle()
+
+        return obj.copy(
+            id = doc.id,
+            title = finalTitle,
+            subtitle = finalSubtitle
+        )
+    }
+
     // Admin panel se naat save hote hi ye automatic real-time flow emit karega
     fun getNaatsRealtime(): Flow<List<Naat>> = callbackFlow {
-        // Emit current cached list first (empty initially until fetched from Firestore)
         trySend(cachedNaats.map { it.toNaat() })
 
         val collection = naatsCollection
@@ -55,7 +106,7 @@ class NaatRepository {
             }
             if (snapshot != null) {
                 val naatList = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Naat::class.java)?.apply { this.id = doc.id }
+                    mapDocToNaat(doc)
                 }
                 cachedNaats.clear()
                 cachedNaats.addAll(naatList.map { it.toNaatItem() })
@@ -76,10 +127,7 @@ class NaatRepository {
                 }
                 if (snapshot != null) {
                     val list = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(Naat::class.java)?.let { naat ->
-                            naat.id = doc.id
-                            naat.toNaatItem()
-                        } ?: doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
+                        mapDocToNaat(doc)?.toNaatItem()
                     }
                     cachedNaats.clear()
                     cachedNaats.addAll(list)
@@ -102,7 +150,7 @@ class NaatRepository {
                 if (error != null) return@addSnapshotListener
                 if (snapshot != null) {
                     val list = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(CategoryItem::class.java)?.copy(id = doc.id)
+                        mapDocToCategory(doc)
                     }
                     cachedCategories.clear()
                     if (list.isNotEmpty()) {
@@ -124,7 +172,7 @@ class NaatRepository {
             if (db != null) {
                 val snapshot = db.collection("categories").get().await()
                 val list = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(CategoryItem::class.java)?.copy(id = doc.id)
+                    mapDocToCategory(doc)
                 }
                 cachedCategories.clear()
                 if (list.isNotEmpty()) {
@@ -196,10 +244,7 @@ class NaatRepository {
             if (db != null) {
                 val snapshot = db.collection("naats").get().await()
                 val list = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Naat::class.java)?.let { naat ->
-                        naat.id = doc.id
-                        naat.toNaatItem()
-                    } ?: doc.toObject(NaatItem::class.java)?.copy(id = doc.id)
+                    mapDocToNaat(doc)?.toNaatItem()
                 }
                 cachedNaats.clear()
                 cachedNaats.addAll(list)
