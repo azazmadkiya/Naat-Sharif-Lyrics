@@ -161,21 +161,30 @@ class NaatViewModel : ViewModel() {
     return user.isSuperAdmin() || user.isAdminRole()
   }
 
-  fun canAddNaat(categoryId: String): Boolean {
+  fun canAddNaat(categoryId: String = ""): Boolean {
     val user = getCurrentUserItem()
     if (user.isSuperAdmin() || user.isAdminRole()) return true
-    if (user.isAddNaatRole()) {
+    if (user.isOnlyAddRole() || user.isAddNaatRole()) {
+      if (categoryId.isBlank()) return true
       return user.allowedCategories.isEmpty() || user.allowedCategories.any { it.equals(categoryId, ignoreCase = true) }
     }
     return false
   }
 
-  fun canEditNaat(categoryId: String): Boolean {
-    return canAddNaat(categoryId)
+  fun canEditNaat(categoryId: String = ""): Boolean {
+    val user = getCurrentUserItem()
+    if (user.isOnlyAddRole()) return false
+    if (user.isSuperAdmin() || user.isAdminRole()) return true
+    if (user.role.equals("ADD_NAAT", ignoreCase = true)) {
+      if (categoryId.isBlank()) return true
+      return user.allowedCategories.isEmpty() || user.allowedCategories.any { it.equals(categoryId, ignoreCase = true) }
+    }
+    return false
   }
 
   fun canDeleteNaat(): Boolean {
     val user = getCurrentUserItem()
+    if (user.isOnlyAddRole()) return false
     return user.isSuperAdmin() || user.isAdminRole()
   }
 

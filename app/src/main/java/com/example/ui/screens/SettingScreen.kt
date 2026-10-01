@@ -99,7 +99,7 @@ fun SettingScreen(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
               )
-              if (viewModel.isAdmin || currentUserItem.isAdminRole() || currentUserItem.isAddNaatRole()) {
+              if (viewModel.isAdmin || currentUserItem.isAdminRole() || currentUserItem.isAddNaatRole() || currentUserItem.isOnlyAddRole()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Surface(
                   shape = RoundedCornerShape(4.dp),
@@ -127,8 +127,8 @@ fun SettingScreen(
         }
       }
 
-      // Admin Section if logged in as Admin / Editor
-      if (viewModel.isAdmin || currentUserItem.isAdminRole() || currentUserItem.isAddNaatRole()) {
+      // Admin / Add Naat Section if logged in as Admin, Editor or Only Add Naat
+      if (viewModel.isAdmin || currentUserItem.isAdminRole() || currentUserItem.isAddNaatRole() || currentUserItem.isOnlyAddRole()) {
         item {
           Card(
             modifier = Modifier
@@ -144,17 +144,21 @@ fun SettingScreen(
                 .padding(16.dp),
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+              Icon(
+                imageVector = if (currentUserItem.isOnlyAddRole()) Icons.Default.AddCircle else Icons.Default.AdminPanelSettings,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+              )
               Spacer(modifier = Modifier.width(16.dp))
               Column(modifier = Modifier.weight(1f)) {
                 Text(
-                  text = "Admin Dashboard",
+                  text = if (currentUserItem.isOnlyAddRole()) "Add Naat Sharif" else "Admin Dashboard",
                   style = MaterialTheme.typography.titleMedium,
                   fontWeight = FontWeight.Bold,
                   color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                  text = "Role: ${currentUserItem.getRoleDisplayName()} • Manage Naats, Categories & Rights",
+                  text = "Role: ${currentUserItem.getRoleDisplayName()} • Manage content",
                   style = MaterialTheme.typography.bodySmall,
                   color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

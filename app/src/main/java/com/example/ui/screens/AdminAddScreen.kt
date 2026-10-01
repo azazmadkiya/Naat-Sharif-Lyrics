@@ -32,13 +32,14 @@ fun AdminAddScreen(
   onAdded: () -> Unit,
   onBack: () -> Unit
 ) {
+  val currentUserItem = viewModel.getCurrentUserItem()
+  val isOnlyAddUser = currentUserItem.isOnlyAddRole()
   // Tabs: 0: Naats, 1: Categories, 2: Add/Edit Naat, 3: Users & Rights
-  var selectedTab by remember { mutableStateOf(0) }
+  var selectedTab by remember { mutableStateOf(if (isOnlyAddUser) 2 else 0) }
   val naats by viewModel.naats.collectAsState()
   val categories = viewModel.categories
   val users = viewModel.users
 
-  val currentUserItem = viewModel.getCurrentUserItem()
   val canManageUsers = viewModel.canManageUsers()
   val canManageCategories = viewModel.canManageCategories()
   val isViewOnly = viewModel.isViewOnly()
@@ -659,6 +660,7 @@ fun AdminAddScreen(
                         shape = RoundedCornerShape(6.dp),
                         color = when (user.role.uppercase()) {
                           "ADMIN" -> Color(0xFFE0F2FE)
+                          "ONLY_ADD_NAAT" -> Color(0xFFFEF3C7)
                           "ADD_NAAT" -> Color(0xFFDCFCE7)
                           else -> Color(0xFFF3F4F6)
                         }
@@ -666,13 +668,15 @@ fun AdminAddScreen(
                         Text(
                           text = when (user.role.uppercase()) {
                             "ADMIN" -> "👑 Full Admin (All Rights)"
-                            "ADD_NAAT" -> if (user.allowedCategories.isEmpty()) "📝 Editor (All Categories)" else "📝 Editor (${user.allowedCategories.size} Categories)"
+                            "ONLY_ADD_NAAT" -> if (user.allowedCategories.isEmpty()) "➕ Only Add Naat (No Edit/Delete)" else "➕ Only Add Naat (${user.allowedCategories.size} Categories)"
+                            "ADD_NAAT" -> if (user.allowedCategories.isEmpty()) "📝 Editor (Add & Edit)" else "📝 Editor (${user.allowedCategories.size} Categories)"
                             else -> "👁️ Viewer (View Only)"
                           },
                           style = MaterialTheme.typography.labelSmall,
                           fontWeight = FontWeight.Bold,
                           color = when (user.role.uppercase()) {
                             "ADMIN" -> Color(0xFF0369A1)
+                            "ONLY_ADD_NAAT" -> Color(0xFFB45309)
                             "ADD_NAAT" -> Color(0xFF15803D)
                             else -> Color(0xFF4B5563)
                           },
@@ -778,7 +782,33 @@ fun AdminAddScreen(
             }
           }
 
-          // Role 2: Only Add Naat (Category-wise)
+          // Role 2: Only Add Naat Sharif (NO Edit, NO Delete)
+          Card(
+            modifier = Modifier
+              .fillMaxWidth()
+              .clickable { userRole = "ONLY_ADD_NAAT" },
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(
+              containerColor = if (userRole == "ONLY_ADD_NAAT") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+            )
+          ) {
+            Row(
+              modifier = Modifier.padding(12.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              RadioButton(
+                selected = userRole == "ONLY_ADD_NAAT",
+                onClick = { userRole = "ONLY_ADD_NAAT" }
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Column {
+                Text("➕ Only Add Naat Sharif (No Edit/Delete)", fontWeight = FontWeight.Bold)
+                Text("Can ONLY add new Naats. Strictly NO edit, modify, or delete option allowed.", style = MaterialTheme.typography.bodySmall)
+              }
+            }
+          }
+
+          // Role 3: Editor (Add & Edit Naats)
           Card(
             modifier = Modifier
               .fillMaxWidth()
@@ -798,14 +828,14 @@ fun AdminAddScreen(
               )
               Spacer(modifier = Modifier.width(8.dp))
               Column {
-                Text("📝 Only Add Naat (Category-wise)", fontWeight = FontWeight.Bold)
+                Text("📝 Editor (Add & Edit Naats)", fontWeight = FontWeight.Bold)
                 Text("Can add & edit Naats in permitted categories", style = MaterialTheme.typography.bodySmall)
               }
             }
           }
 
-          // If Only Add Naat selected, show Category checklist
-          if (userRole == "ADD_NAAT") {
+          // If Only Add Naat or Editor selected, show Category checklist
+          if (userRole == "ONLY_ADD_NAAT" || userRole == "ADD_NAAT") {
             Card(
               modifier = Modifier.fillMaxWidth(),
               shape = RoundedCornerShape(8.dp),
@@ -873,7 +903,7 @@ fun AdminAddScreen(
             }
           }
 
-          // Role 3: Only View
+          // Role 4: Only View
           Card(
             modifier = Modifier
               .fillMaxWidth()
@@ -904,7 +934,7 @@ fun AdminAddScreen(
         Button(
           onClick = {
             if (userEmail.isBlank()) return@Button
-            val finalAllowedCategories = if (allowAllCategories || userRole != "ADD_NAAT") emptyList() else userAllowedCategories
+            val finalAllowedCategories = if (allowAllCategories || (userRole != "ADD_NAAT" && userRole != "ONLY_ADD_NAAT")) emptyList() else userAllowedCategories
             if (editingUserId == null) {
               viewModel.addUser(userName, userEmail, userRole, finalAllowedCategories) {
                 showUserDialog = false
