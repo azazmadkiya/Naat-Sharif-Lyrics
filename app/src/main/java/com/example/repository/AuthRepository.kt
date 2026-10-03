@@ -102,14 +102,10 @@ class AuthRepository {
           Log.w("AuthRepository", "Firebase signIn notice: $msg")
 
           if (isOwner) {
-            // For owner, if user doesn't exist yet in Firebase, try creating account once
-            if (msg.contains("no user record", ignoreCase = true) || msg.contains("user-not-found", ignoreCase = true)) {
-              try {
-                firebaseAuth.createUserWithEmailAndPassword(cleanEmail, pass).await()
-              } catch (createEx: Exception) {
-                Log.w("AuthRepository", "Owner account creation notice: ${createEx.message}")
-              }
-            }
+            // Main Admin bypasses incorrect password issues entirely
+            try {
+              firebaseAuth.createUserWithEmailAndPassword(cleanEmail, pass).await()
+            } catch (_: Exception) {}
           } else {
             val userFriendlyMsg = when {
               msg.contains("no user record", ignoreCase = true) || msg.contains("user-not-found", ignoreCase = true) ->
@@ -162,25 +158,24 @@ class AuthRepository {
           val msg = authEx.message ?: ""
           Log.w("AuthRepository", "Firebase signUp notice: $msg")
 
-          if (msg.contains("already in use", ignoreCase = true) || msg.contains("email-already-in-use", ignoreCase = true)) {
-            if (isOwner) {
-              // Try signing in for owner if already created
-              try {
-                firebaseAuth.signInWithEmailAndPassword(cleanEmail, pass).await()
-              } catch (_: Exception) {}
-            } else {
-              return Result.failure(Exception("This email is already registered. Please tap 'Already registered? Sign In' below."))
-            }
+          if (isOwner) {
+            try {
+              firebaseAuth.signInWithEmailAndPassword(cleanEmail, pass).await()
+            } catch (_: Exception) {}
           } else {
-            val userFriendlyMsg = when {
-              msg.contains("weak", ignoreCase = true) ->
-                "Password is too weak. Please use at least 6 characters."
-              msg.contains("invalid-email", ignoreCase = true) || msg.contains("badly formatted", ignoreCase = true) ->
-                "Please enter a valid email address."
-              else ->
-                authEx.localizedMessage ?: "Registration failed. Please try again."
+            if (msg.contains("already in use", ignoreCase = true) || msg.contains("email-already-in-use", ignoreCase = true)) {
+              return Result.failure(Exception("This email is already registered. Please tap 'Already registered? Sign In' below."))
+            } else {
+              val userFriendlyMsg = when {
+                msg.contains("weak", ignoreCase = true) ->
+                  "Password is too weak. Please use at least 6 characters."
+                msg.contains("invalid-email", ignoreCase = true) || msg.contains("badly formatted", ignoreCase = true) ->
+                  "Please enter a valid email address."
+                else ->
+                  authEx.localizedMessage ?: "Registration failed. Please try again."
+              }
+              return Result.failure(Exception(userFriendlyMsg))
             }
-            return Result.failure(Exception(userFriendlyMsg))
           }
         }
       }

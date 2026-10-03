@@ -1,10 +1,12 @@
 package com.example.viewmodel
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.NaatApplication
 import com.example.model.AppUserItem
 import com.example.model.CategoryItem
 import com.example.model.NaatItem
@@ -46,11 +48,58 @@ class NaatViewModel : ViewModel() {
   var isAdmin by mutableStateOf(authRepo.isAdmin)
   var authError by mutableStateOf<String?>(null)
 
+  var sessionIdleTimeoutMinutes by mutableStateOf(getStoredIdleTimeoutMinutes())
+    private set
+  var showSessionExpiredDialog by mutableStateOf(false)
+  private var lastInteractionTime = System.currentTimeMillis()
+
+  private fun getStoredIdleTimeoutMinutes(): Int {
+    try {
+      val prefs = NaatApplication.instance.getSharedPreferences("NaatAdminPrefs", Context.MODE_PRIVATE)
+      return prefs.getInt("session_idle_timeout_mins", 15) // default 15 minutes
+    } catch (_: Exception) {
+      return 15
+    }
+  }
+
+  fun setSessionIdleTimeout(minutes: Int) {
+    sessionIdleTimeoutMinutes = minutes
+    try {
+      val prefs = NaatApplication.instance.getSharedPreferences("NaatAdminPrefs", Context.MODE_PRIVATE)
+      prefs.edit().putInt("session_idle_timeout_mins", minutes).apply()
+    } catch (_: Exception) {}
+    lastInteractionTime = System.currentTimeMillis()
+  }
+
+  fun recordUserInteraction() {
+    lastInteractionTime = System.currentTimeMillis()
+  }
+
   var isConnected by mutableStateOf(true)
   var errorMessage by mutableStateOf<String?>(null)
   var isRefreshing by mutableStateOf(false)
 
   init {
+    // Idle session watchdog coroutine
+    viewModelScope.launch {
+      while (true) {
+        kotlinx.coroutines.delay(30_000L) // check every 30 seconds
+        val timeoutMins = sessionIdleTimeoutMinutes
+        if (timeoutMins > 0 && isLoggedIn) {
+          val idleDuration = System.currentTimeMillis() - lastInteractionTime
+          val timeoutMs = timeoutMins * 60 * 1000L
+          if (idleDuration > timeoutMs) {
+            authRepo.signOut()
+            isLoggedIn = false
+            loggedInEmail = null
+            isAdmin = false
+            currentUser = null
+            showSessionExpiredDialog = true
+            lastInteractionTime = System.currentTimeMillis()
+          }
+        }
+      }
+    }
     // 1. Sync & listen to user favorites across devices via Firestore
     favoritesRepo.syncUserFavorites(loggedInEmail ?: currentUser?.email)
     viewModelScope.launch {
@@ -127,7 +176,36 @@ class NaatViewModel : ViewModel() {
       )
     }
     val matched = users.find { it.email.equals(email, ignoreCase = true) }
-    if (matched != null) return matched
+    if (matched != null) {
+      try {
+        val prefs = NaatApplication.instance.getSharedPreferences("NaatAdminPrefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit()
+          .putString("user_role_$email", matched.role)
+          .putString("user_name_$email", matched.name)
+          .putString("user_cats_$email", matched.allowedCategories.joinToString(","))
+          .apply()
+      } catch (_: Exception) {}
+      return matched
+    }
+
+    // Check SharedPreferences cache for assigned rights across logout/login and offline
+    try {
+      val prefs = NaatApplication.instance.getSharedPreferences("NaatAdminPrefs", android.content.Context.MODE_PRIVATE)
+      val cachedRole = prefs.getString("user_role_$email", null)
+      if (!cachedRole.isNullOrBlank()) {
+        val cachedName = prefs.getString("user_name_$email", email) ?: email
+        val cachedCatsStr = prefs.getString("user_cats_$email", "") ?: ""
+        val cachedCats = if (cachedCatsStr.isNotBlank()) cachedCatsStr.split(",").map { it.trim() }.filter { it.isNotBlank() } else emptyList()
+        return AppUserItem(
+          id = "user_cached_$email",
+          email = email,
+          name = cachedName,
+          role = cachedRole,
+          allowedCategories = cachedCats,
+          isActive = true
+        )
+      }
+    } catch (_: Exception) {}
 
     // Fallback if marked as admin in local preferences
     return if (isAdmin) {
@@ -195,10 +273,20 @@ class NaatViewModel : ViewModel() {
 
   fun addUser(name: String, email: String, role: String, allowedCategories: List<String>, onComplete: (Boolean) -> Unit) {
     viewModelScope.launch {
+      val cleanEmail = email.trim().lowercase()
+      try {
+        val prefs = NaatApplication.instance.getSharedPreferences("NaatAdminPrefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit()
+          .putString("user_role_$cleanEmail", role)
+          .putString("user_name_$cleanEmail", name.trim())
+          .putString("user_cats_$cleanEmail", allowedCategories.joinToString(","))
+          .apply()
+      } catch (_: Exception) {}
+
       val newUser = AppUserItem(
         id = "user_${System.currentTimeMillis()}",
         name = name.trim(),
-        email = email.trim().lowercase(),
+        email = cleanEmail,
         role = role,
         allowedCategories = allowedCategories,
         createdAt = System.currentTimeMillis(),
@@ -214,10 +302,20 @@ class NaatViewModel : ViewModel() {
 
   fun updateUser(id: String, name: String, email: String, role: String, allowedCategories: List<String>, onComplete: (Boolean) -> Unit) {
     viewModelScope.launch {
+      val cleanEmail = email.trim().lowercase()
+      try {
+        val prefs = NaatApplication.instance.getSharedPreferences("NaatAdminPrefs", android.content.Context.MODE_PRIVATE)
+        prefs.edit()
+          .putString("user_role_$cleanEmail", role)
+          .putString("user_name_$cleanEmail", name.trim())
+          .putString("user_cats_$cleanEmail", allowedCategories.joinToString(","))
+          .apply()
+      } catch (_: Exception) {}
+
       val updatedUser = AppUserItem(
         id = id,
         name = name.trim(),
-        email = email.trim().lowercase(),
+        email = cleanEmail,
         role = role,
         allowedCategories = allowedCategories,
         createdAt = System.currentTimeMillis(),

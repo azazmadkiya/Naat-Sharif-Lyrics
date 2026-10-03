@@ -257,6 +257,79 @@ fun SettingScreen(
         }
       }
 
+      // Session Idle Timeout Item
+      item {
+        var showTimeoutDialog by remember { mutableStateOf(false) }
+        val currentTimeout = viewModel.sessionIdleTimeoutMinutes
+        val timeoutSubtitle = when (currentTimeout) {
+          0 -> "Disabled (Never)"
+          1 -> "1 Minute"
+          5 -> "5 Minutes"
+          15 -> "15 Minutes"
+          30 -> "30 Minutes"
+          60 -> "1 Hour"
+          else -> "$currentTimeout Minutes"
+        }
+
+        SettingItem(
+          icon = Icons.Default.AccessTime,
+          title = "Admin Session Timeout",
+          subtitle = "Auto logout after inactivity: $timeoutSubtitle"
+        ) {
+          showTimeoutDialog = true
+        }
+
+        if (showTimeoutDialog) {
+          AlertDialog(
+            onDismissRequest = { showTimeoutDialog = false },
+            title = { Text("Select Session Idle Timeout") },
+            text = {
+              Column {
+                Text("Choose how long the admin/user session can remain idle before automatically clearing rights and requiring re-login:")
+                Spacer(modifier = Modifier.height(12.dp))
+                val options = listOf(
+                  0 to "Disabled (Never)",
+                  1 to "1 Minute",
+                  5 to "5 Minutes",
+                  15 to "15 Minutes",
+                  30 to "30 Minutes",
+                  60 to "1 Hour"
+                )
+                for ((mins, label) in options) {
+                  Row(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .clickable {
+                        viewModel.setSessionIdleTimeout(mins)
+                        showTimeoutDialog = false
+                        Toast.makeText(context, "Idle timeout set to $label", Toast.LENGTH_SHORT).show()
+                      }
+                      .padding(vertical = 12.dp, horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    RadioButton(
+                      selected = currentTimeout == mins,
+                      onClick = {
+                        viewModel.setSessionIdleTimeout(mins)
+                        showTimeoutDialog = false
+                        Toast.makeText(context, "Idle timeout set to $label", Toast.LENGTH_SHORT).show()
+                      }
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(label, style = MaterialTheme.typography.bodyLarge)
+                  }
+                }
+              }
+            },
+            confirmButton = {
+              TextButton(onClick = { showTimeoutDialog = false }) {
+                Text("Close")
+              }
+            }
+          )
+        }
+      }
+
       // Logout Row
       item {
         SettingItem(

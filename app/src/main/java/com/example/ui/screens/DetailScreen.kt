@@ -101,23 +101,6 @@ fun DetailScreen(
               tint = if (naat.isFavorite) Color.Red else MaterialTheme.colorScheme.onSurface
             )
           }
-          IconButton(onClick = {
-            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            val clip = android.content.ClipData.newPlainText("Naat Lyrics", "${naat.title}\n\n$displayText")
-            clipboard.setPrimaryClip(clip)
-          }) {
-            Icon(Icons.Default.ContentCopy, contentDescription = "Copy Lyrics")
-          }
-          IconButton(onClick = {
-            val sendIntent = Intent().apply {
-              action = Intent.ACTION_SEND
-              putExtra(Intent.EXTRA_TEXT, "${naat.title}\n\n$displayText\n\nShared via Naat Sharif App")
-              type = "text/plain"
-            }
-            context.startActivity(Intent.createChooser(sendIntent, null))
-          }) {
-            Icon(Icons.Default.Share, contentDescription = "Share Lyrics")
-          }
         }
       }
     }
