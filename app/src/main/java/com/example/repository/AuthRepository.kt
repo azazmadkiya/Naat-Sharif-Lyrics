@@ -101,16 +101,20 @@ class AuthRepository {
           val msg = authEx.message ?: ""
           Log.w("AuthRepository", "Firebase signIn notice: $msg")
 
-          if (isOwner) {
-            // Main Admin bypasses incorrect password issues entirely
+          val isUserNotFound = msg.contains("no user record", ignoreCase = true) || msg.contains("user-not-found", ignoreCase = true)
+
+          if (isOwner && isUserNotFound) {
+            // If owner account doesn't exist yet in Firebase, create it on the fly
             try {
               firebaseAuth.createUserWithEmailAndPassword(cleanEmail, pass).await()
-            } catch (_: Exception) {}
+            } catch (createEx: Exception) {
+              return Result.failure(Exception(createEx.localizedMessage ?: "Failed to create owner account."))
+            }
           } else {
             val userFriendlyMsg = when {
-              msg.contains("no user record", ignoreCase = true) || msg.contains("user-not-found", ignoreCase = true) ->
+              isUserNotFound ->
                 "No account found with this email. Please tap 'New user? Create an Account'."
-              msg.contains("credential", ignoreCase = true) || msg.contains("password", ignoreCase = true) || msg.contains("malformed", ignoreCase = true) ->
+              msg.contains("credential", ignoreCase = true) || msg.contains("password", ignoreCase = true) || msg.contains("malformed", ignoreCase = true) || msg.contains("wrong-password", ignoreCase = true) ->
                 "Incorrect password. Please verify and try again, or tap 'Forgot Password?'."
               msg.contains("network", ignoreCase = true) ->
                 "Network error. Please check your internet connection."
@@ -123,9 +127,7 @@ class AuthRepository {
       }
     } catch (e: Exception) {
       Log.w("AuthRepository", "Auth exception: ${e.message}")
-      if (!isOwner) {
-        return Result.failure(e)
-      }
+      return Result.failure(e)
     }
 
     setLoggedInUser(cleanEmail)
@@ -158,32 +160,32 @@ class AuthRepository {
           val msg = authEx.message ?: ""
           Log.w("AuthRepository", "Firebase signUp notice: $msg")
 
-          if (isOwner) {
-            try {
-              firebaseAuth.signInWithEmailAndPassword(cleanEmail, pass).await()
-            } catch (_: Exception) {}
-          } else {
-            if (msg.contains("already in use", ignoreCase = true) || msg.contains("email-already-in-use", ignoreCase = true)) {
-              return Result.failure(Exception("This email is already registered. Please tap 'Already registered? Sign In' below."))
-            } else {
-              val userFriendlyMsg = when {
-                msg.contains("weak", ignoreCase = true) ->
-                  "Password is too weak. Please use at least 6 characters."
-                msg.contains("invalid-email", ignoreCase = true) || msg.contains("badly formatted", ignoreCase = true) ->
-                  "Please enter a valid email address."
-                else ->
-                  authEx.localizedMessage ?: "Registration failed. Please try again."
+          if (msg.contains("already in use", ignoreCase = true) || msg.contains("email-already-in-use", ignoreCase = true)) {
+            if (isOwner) {
+              try {
+                firebaseAuth.signInWithEmailAndPassword(cleanEmail, pass).await()
+              } catch (signInEx: Exception) {
+                return Result.failure(Exception("Incorrect password for admin account. Please enter the correct password."))
               }
-              return Result.failure(Exception(userFriendlyMsg))
+            } else {
+              return Result.failure(Exception("This email is already registered. Please tap 'Already registered? Sign In' below."))
             }
+          } else {
+            val userFriendlyMsg = when {
+              msg.contains("weak", ignoreCase = true) ->
+                "Password is too weak. Please use at least 6 characters."
+              msg.contains("invalid-email", ignoreCase = true) || msg.contains("badly formatted", ignoreCase = true) ->
+                "Please enter a valid email address."
+              else ->
+                authEx.localizedMessage ?: "Registration failed. Please try again."
+            }
+            return Result.failure(Exception(userFriendlyMsg))
           }
         }
       }
     } catch (e: Exception) {
       Log.w("AuthRepository", "Auth exception: ${e.message}")
-      if (!isOwner) {
-        return Result.failure(e)
-      }
+      return Result.failure(e)
     }
 
     setLoggedInUser(cleanEmail)
